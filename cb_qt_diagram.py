@@ -97,11 +97,18 @@ def qt_sens_latent(sens_hot, sens_cold, latent_hot, latent_cold, delta_t_min, pl
     # plot the results
     mpl.rcParams['font.size'] = 16
     plt.figure(figsize=(14, 7))
-    plt.plot(m_enthalpy_sens, temp_sens, color='red')
-    plt.plot(m_enthalpy_liq_lat, temp_liq_lat, color='blue')
-    plt.plot(m_enthalpy_vap_lat, temp_vap_lat, color='blue')
-    plt.plot([min(m_enthalpy_vap_lat), max(m_enthalpy_liq_lat)], [temp_boil, temp_boil], color='blue')
-    plt.legend(["Hot side", "Cold side"])
+    if sens_hot.T.val >= latent_hot.T.val:
+        plt.plot(m_enthalpy_sens, temp_sens, color='red')
+        plt.plot(m_enthalpy_liq_lat, temp_liq_lat, color='blue')
+        plt.plot(m_enthalpy_vap_lat, temp_vap_lat, color='blue')
+        plt.plot([min(m_enthalpy_vap_lat), max(m_enthalpy_liq_lat)], [temp_boil, temp_boil], color='blue')
+        plt.legend(["Hot side", "Cold side"])
+    else:
+        plt.plot(m_enthalpy_sens, temp_sens, color='blue')
+        plt.plot(m_enthalpy_liq_lat, temp_liq_lat, color='red')
+        plt.plot(m_enthalpy_vap_lat, temp_vap_lat, color='red')
+        plt.plot([min(m_enthalpy_vap_lat), max(m_enthalpy_liq_lat)], [temp_boil, temp_boil], color='red')
+        plt.legend(["Cold side", "Hot side"])
     plt.xlabel('Q [kW]')
     plt.grid(True)
     plt.ylabel('T [°C]')

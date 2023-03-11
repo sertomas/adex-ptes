@@ -1,5 +1,6 @@
-# The following functions creates a simple heat pump
-# and a simple ORC cycle using the given working fluids
+# "hp_network" create a simple heat pump using the given working fluids
+# "orc_network" create a simple ORC cycle using the given working fluids
+
 
 from tespy.networks import Network
 from tespy.connections import Connection

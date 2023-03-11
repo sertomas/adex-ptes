@@ -1,11 +1,8 @@
+# "hp_settings" set the initial values, parameters and design variables of the heat pump
+# "orc_settings" set the initial values, parameters and design variables of the ORC
+
+
 # --- OVERALL ------------------------------------------------------------
-
-# set here the ambient conditions
-T_amb = 10  # temperature of ambient [°C]
-p_amb = 1.013  # pressure of ambient [bar]
-
-# set here the tolerated minimal temperature difference
-DeltaT_min = 5  # [K]
 
 # set here the pressure drops in all heat exchangers (for now the same everywhere)
 p_loss_rel = 0.95  # relative pressure drop in the heat exchangers
@@ -18,19 +15,19 @@ T_high_TES = 130  # high temperature of the water in the TES [°C]
 # --- HEAT PUMP ------------------------------------------------------------
 inlet_power = 1.5e6  # power to compressor [W]
 p_low_hp = 0.45  # inlet pressure of compressor [bar]
-p_high_hp = 26  # outlet pressure of condenser [bar]
+p_high_hp = 25.5  # outlet pressure of condenser [bar]
 eta_s_compressor = 0.85  # isentropic efficiency of compressor
 
 
 # --- ORC ------------------------------------------------------------
 outlet_power = 0.4e6  # power from turbine [W]
-p_low_orc = 1  # inlet pressure of pump [bar]
-p_high_orc = 6.5  # outlet pressure of evaporator [bar]
+p_low_orc = 1.2  # inlet pressure of pump [bar]
+p_high_orc = 7  # outlet pressure of evaporator [bar]
 eta_s_pump = 0.85  # isentropic efficiency of pump
 eta_s_turbine = 0.85  # isentropic efficiency of turbine
 
 
-def hp_settings(network):
+def hp_settings(network, T_amb, p_amb, delta_t_min):
 
     # pressure drops and isentropic efficiencies
     network.get_comp('evaporator hp').set_attr(pr1=p_loss_rel, pr2=p_loss_rel)
@@ -39,7 +36,7 @@ def hp_settings(network):
 
     # heat pump cycle
     network.get_comp('compressor').set_attr(P=inlet_power)
-    network.get_conn('2').set_attr(T=T_amb-DeltaT_min, p=p_low_hp, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
+    network.get_conn('2').set_attr(T=T_amb-delta_t_min, p=p_low_hp, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
     network.get_conn('4').set_attr(p=p_high_hp)
     network.get_comp('condenser hp').set_attr(ttd_l=5)
 
@@ -54,7 +51,7 @@ def hp_settings(network):
     return network
 
 
-def orc_settings(network):
+def orc_settings(network, T_amb, p_amb, delta_t_min):
 
     # pressure drops and isentropic efficiencies
     network.get_comp('evaporator orc').set_attr(pr1=p_loss_rel, pr2=p_loss_rel)
@@ -68,7 +65,7 @@ def orc_settings(network):
     network.get_conn('14').set_attr(T=120, p=p_high_orc)
 
     # ambient water
-    network.get_conn('15').set_attr(T=10, p=p_amb, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
+    network.get_conn('15').set_attr(T=T_amb, p=p_amb, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
     network.get_conn('16').set_attr(T=15)
 
     # TES discharging water
