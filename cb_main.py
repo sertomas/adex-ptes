@@ -6,7 +6,7 @@ import matplotlib as mpl
 import numpy as np
 
 from cb_set_pars import hp_settings, orc_settings
-from cb_network import hp_network, orc_network
+from cb_network import hp_network, orc_network, hp_expander
 from cb_qt_diagram import qt_sens_latent
 from cb_set_pressure import set_pressure
 from cb_exergy import exergy_analysis
@@ -83,3 +83,5 @@ if min(delta_t_he) < delta_t_min - 1e-5:
 
 # 5) conventional exergy analysis
 ex_an_hp, ex_an_orc = exergy_analysis(hp, orc, T_amb, p_amb)
+
+# 6) advanced exergy analysis
