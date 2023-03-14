@@ -1,11 +1,12 @@
-# "exergy_analysis" perform a conventional exergy analysis of the heat pump and the ORC
+# "exerg_an_hp" perform a conventional exergy analysis of the heat pump
+# "exerg_an_orc" perform a conventional exergy analysis of the ORC
 
 from tespy.networks import Network
 from tespy.connections import Connection, Bus, Ref
 from tespy.tools import ExergyAnalysis
 
 
-def exergy_analysis(hp, orc, T_amb, p_amb):
+def exerg_an_hp(hp, T_amb, p_amb):
 
     # 1) set exergy streams and add them to the networks
 
@@ -21,6 +22,18 @@ def exergy_analysis(hp, orc, T_amb, p_amb):
                                {'comp': hp.get_comp('outlet ambient water hp')})
 
     hp.add_busses(power_bus_hp, charging_water_bus, amb_water_hp_bus)
+
+    # 2) carry out exergy analysis
+
+    ex_an_hp = ExergyAnalysis(hp, E_F=[power_bus_hp], E_P=[charging_water_bus], E_L=[amb_water_hp_bus])
+    ex_an_hp.analyse(pamb=p_amb, Tamb=T_amb)
+
+    return ex_an_hp
+
+
+def exerg_an_orc(orc, T_amb, p_amb):
+
+    # 1) set exergy streams and add them to the networks
 
     power_bus_orc = Bus('power output')
     power_bus_orc.add_comps({'comp': orc.get_comp('steam turbine'), 'char': 0.95, 'base': 'component'},
@@ -38,17 +51,8 @@ def exergy_analysis(hp, orc, T_amb, p_amb):
 
     # 2) carry out exergy analysis
 
-    ex_an_hp = ExergyAnalysis(hp, E_F=[power_bus_hp], E_P=[charging_water_bus], E_L=[amb_water_hp_bus])
-    ex_an_hp.analyse(pamb=p_amb, Tamb=T_amb)
-
     ex_an_orc = ExergyAnalysis(orc, E_F=[discharging_water_bus], E_P=[power_bus_orc], E_L=[amb_water_orc_bus])
     ex_an_orc.analyse(pamb=p_amb, Tamb=T_amb)
 
-    (ex_an_hp.connection_data / 1e3).round(3).to_csv("hp_ex_an_conn.csv")  # in kJ/kg
-    (ex_an_orc.connection_data / 1e3).round(3).to_csv("orc_ex_an_conn.csv")  # in kJ/kg
-
-    ex_an_hp.component_data[ex_an_hp.component_data["E_F"] > 0].round(3).to_csv("hp_ex_an_comp.csv")
-    ex_an_orc.component_data[ex_an_orc.component_data["E_F"] > 0].round(3).to_csv("orc_ex_an_comp.csv")
-
-    return ex_an_hp, ex_an_orc
+    return ex_an_orc
 

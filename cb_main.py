@@ -9,7 +9,7 @@ from cb_set_pars import hp_settings, orc_settings
 from cb_network import hp_network, orc_network, hp_expander
 from cb_qt_diagram import qt_sens_latent
 from cb_set_pressure import set_pressure
-from cb_exergy import exergy_analysis
+from cb_exergy import exerg_an_hp, exerg_an_orc
 
 # 1) set the networks
 hp = hp_network(['R245fa', 'water'])
@@ -25,10 +25,10 @@ orc_settings(orc, T_amb, p_amb, delta_t_min)
 
 # 3) solve the problem and store the results in .csv files
 hp.solve(mode='design')
-hp.results['Connection'].round(3).to_csv("hp_results.csv")
+hp.results['Connection'].round(5).to_csv("hp_results.csv")
 
 orc.solve(mode='design')
-orc.results['Connection'].round(3).to_csv("orc_results.csv")
+orc.results['Connection'].round(5).to_csv("orc_results.csv")
 
 # 4a) check QT-diagrams and correct the pressures
 delta_t_he = [
@@ -64,15 +64,15 @@ orc.get_conn('14').set_attr(p=7)
 orc.get_conn('12').set_attr(p=1.2)
 
 hp.solve('design')
-hp.results['Connection'].round(3).to_csv("hp_results.csv")
+hp.results['Connection'].round(5).to_csv("hp_results.csv")
 
 orc.solve('design')
-orc.results['Connection'].round(3).to_csv("orc_results.csv")
+orc.results['Connection'].round(5).to_csv("orc_results.csv")
 
 # check if the minimum temperature difference is still respected
 delta_t_he = [
     qt_sens_latent(hp.get_conn('5'), hp.get_conn('6'), hp.get_conn('2'), hp.get_conn('1'), delta_t_min, False),
-    qt_sens_latent(hp.get_conn('8'), hp.get_conn('7'), hp.get_conn('3'), hp.get_conn('4'), delta_t_min, False),
+    qt_sens_latent(hp.get_conn('8'), hp.get_conn('7'), hp.get_conn('3'), hp.get_conn('4'), delta_t_min, True),
     qt_sens_latent(orc.get_conn('17'), orc.get_conn('18'), orc.get_conn('14'), orc.get_conn('13'), delta_t_min, False),
     qt_sens_latent(orc.get_conn('16'), orc.get_conn('15'), orc.get_conn('11'), orc.get_conn('12'), delta_t_min, False)
     ]
@@ -82,6 +82,13 @@ if min(delta_t_he) < delta_t_min - 1e-5:
           "Set new parameters or perform a sensitivity analysis.")
 
 # 5) conventional exergy analysis
-ex_an_hp, ex_an_orc = exergy_analysis(hp, orc, T_amb, p_amb)
+ex_an_hp = exerg_an_hp(hp, T_amb, p_amb)
+(ex_an_hp.connection_data / 1e3).round(5).to_csv("hp_ex_an_conn.csv")  # in kJ/kg
+ex_an_hp.component_data[ex_an_hp.component_data["E_F"] > 0].round(5).to_csv("hp_ex_an_comp.csv")
+
+ex_an_orc =exerg_an_orc(orc, T_amb, p_amb)
+(ex_an_orc.connection_data / 1e3).round(5).to_csv("orc_ex_an_conn.csv")  # in kJ/kg
+ex_an_orc.component_data[ex_an_orc.component_data["E_F"] > 0].round(5).to_csv("orc_ex_an_comp.csv")
 
 # 6) advanced exergy analysis
+# in another python script
