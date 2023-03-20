@@ -1,6 +1,6 @@
 # "hp_settings" sets the initial values, parameters and design variables of the heat pump
 # "orc_settings" sets the initial values, parameters and design variables of the ORC
-# "hp_settings_expander" sets the initial values, parameters and design variables of the heat pump with expander
+# "hp_settings_234" sets the initial values, parameters and design variables of the open heat pump with states 2-3-4
 
 # --- OVERALL ------------------------------------------------------------
 
@@ -25,9 +25,6 @@ p_low_orc = 1.2  # inlet pressure of pump [bar]
 p_high_orc = 7  # outlet pressure of evaporator [bar]
 eta_s_pump = 0.85  # isentropic efficiency of pump
 eta_s_turbine = 0.85  # isentropic efficiency of turbine
-
-
-# --- HEAT PUMP with expander ---------------------------------------------
 
 
 def hp_settings(network, T_amb, p_amb, delta_t_min):
@@ -78,27 +75,16 @@ def orc_settings(network, T_amb, p_amb, delta_t_min):
     return network
 
 
-def hp_settings_compressor(network, T_amb, p_amb, delta_t_min):
+def hp_settings_234(network, T_amb, p_amb, delta_t_min, Q_cond):
 
-    # no pressure drops and isentropic efficiencies
-    network.get_comp('evaporator hp').set_attr(pr1=1, pr2=1)
-    network.get_comp('condenser hp').set_attr(pr1=1, pr2=1)
+    # no pressure drops in the condenser and isentropic efficiency of compressor is real
+    network.get_comp('condenser hp').set_attr(pr=1, Q=Q_cond)
     network.get_comp('compressor').set_attr(eta_s=eta_s_compressor)
-    network.get_comp('expander').set_attr(eta_s=1)
 
     # heat pump cycle
-    network.get_comp('compressor').set_attr(P=inlet_power)
     network.get_conn('2').set_attr(T=T_amb-delta_t_min, p=p_low_hp, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
-    network.get_conn('4').set_attr(p=p_high_hp)
-    network.get_comp('condenser hp').set_attr(ttd_l=5)
-
-    # ambient water
-    network.get_conn('5').set_attr(T=T_amb, p=p_amb, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
-    network.get_conn('6').set_attr(T=5)
-
-    # TES charging water
-    network.get_conn('7').set_attr(T=T_low_TES, p=3, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
-    network.get_conn('8').set_attr(T=T_high_TES)
+    network.get_conn('3').set_attr(p=p_high_hp)
+    network.get_conn('4').set_attr(T=T_low_TES+delta_t_min)
 
     return network
 
