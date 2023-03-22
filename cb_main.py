@@ -6,7 +6,7 @@ import matplotlib as mpl
 import numpy as np
 
 from cb_set_pars import hp_settings, orc_settings
-from cb_network import hp_network, orc_network, hp_expander
+from cb_network import hp_network, orc_network
 from cb_qt_diagram import qt_sens_latent
 from cb_set_pressure import set_pressure
 from cb_exergy import exerg_an_hp, exerg_an_orc
@@ -59,7 +59,7 @@ if min(delta_t_he) < delta_t_min - 1e-5:
 
 # 4b) set the optimal pressures and run the model again
 # this step can be skipped if the optimal parameters have been found already
-hp.get_conn('4').set_attr(p=25)
+hp.get_conn('4').set_attr(p=25.5)
 orc.get_conn('14').set_attr(p=7)
 orc.get_conn('12').set_attr(p=1.2)
 
@@ -72,7 +72,7 @@ orc.results['Connection'].round(5).to_csv("orc_results.csv")
 # check if the minimum temperature difference is still respected
 delta_t_he = [
     qt_sens_latent(hp.get_conn('5'), hp.get_conn('6'), hp.get_conn('2'), hp.get_conn('1'), delta_t_min, False),
-    qt_sens_latent(hp.get_conn('8'), hp.get_conn('7'), hp.get_conn('3'), hp.get_conn('4'), delta_t_min, True),
+    qt_sens_latent(hp.get_conn('8'), hp.get_conn('7'), hp.get_conn('3'), hp.get_conn('4'), delta_t_min, False),
     qt_sens_latent(orc.get_conn('17'), orc.get_conn('18'), orc.get_conn('14'), orc.get_conn('13'), delta_t_min, False),
     qt_sens_latent(orc.get_conn('16'), orc.get_conn('15'), orc.get_conn('11'), orc.get_conn('12'), delta_t_min, False)
     ]
@@ -89,6 +89,3 @@ ex_an_hp.component_data[ex_an_hp.component_data["E_F"] > 0].round(5).to_csv("hp_
 ex_an_orc =exerg_an_orc(orc, T_amb, p_amb)
 (ex_an_orc.connection_data / 1e3).round(5).to_csv("orc_ex_an_conn.csv")  # in kJ/kg
 ex_an_orc.component_data[ex_an_orc.component_data["E_F"] > 0].round(5).to_csv("orc_ex_an_comp.csv")
-
-# 6) advanced exergy analysis
-# in another python script

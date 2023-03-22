@@ -114,3 +114,27 @@ def hp_234(working_fluids):
     hp.add_conns(c2, c3, c4)
 
     return hp
+
+def hp_open(working_fluids):
+
+    hp = Network(
+            fluids=working_fluids,
+            T_unit="C", p_unit="bar", h_unit="kJ / kg", m_unit="kg / s"
+    )
+
+    working_fluid_in = Source('inlet working fluid')
+    working_fluid_out = Sink('outlet working fluid')
+    condenser_hp = HeatExchangerSimple('condenser hp')
+    evaporator_hp = HeatExchangerSimple('evaporator hp')
+    compressor = Compressor('compressor')
+
+    # Open heat pump cycle
+    c1 = Connection(working_fluid_in, 'out1', evaporator_hp, 'in1', label='1')
+    c2 = Connection(evaporator_hp, 'out1', compressor, 'in1', label='2')
+    c3 = Connection(compressor, 'out1', condenser_hp, 'in1', label='3')
+    c4 = Connection(condenser_hp, 'out1', working_fluid_out, 'in1', label='4')
+
+    # all connections have to be added to the network
+    hp.add_conns(c1, c2, c3, c4)
+
+    return hp
