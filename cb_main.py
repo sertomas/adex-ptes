@@ -64,10 +64,10 @@ orc.get_conn('14').set_attr(p=7)
 orc.get_conn('12').set_attr(p=1.2)
 
 hp.solve('design')
-hp.results['Connection'].round(5).to_csv("hp_results.csv")
+hp.results['Connection'].round(5).to_csv("hp_base_case.csv")
 
 orc.solve('design')
-orc.results['Connection'].round(5).to_csv("orc_results.csv")
+orc.results['Connection'].round(5).to_csv("orc_base_case.csv")
 
 # check if the minimum temperature difference is still respected
 delta_t_he = [
@@ -83,9 +83,9 @@ if min(delta_t_he) < delta_t_min - 1e-5:
 
 # 5) conventional exergy analysis
 ex_an_hp = exerg_an_hp(hp, T_amb, p_amb)
-(ex_an_hp.connection_data / 1e3).round(5).to_csv("hp_ex_an_conn.csv")  # in kJ/kg
-ex_an_hp.component_data[ex_an_hp.component_data["E_F"] > 0].round(5).to_csv("hp_ex_an_comp.csv")
+(ex_an_hp.connection_data / 1e3).round(5).to_csv("hp_exan_connections.csv")  # in kJ/kg
+ex_an_hp.component_data[ex_an_hp.component_data["E_F"] > 0].round(5).to_csv("hp_exan_components.csv")
 
 ex_an_orc =exerg_an_orc(orc, T_amb, p_amb)
-(ex_an_orc.connection_data / 1e3).round(5).to_csv("orc_ex_an_conn.csv")  # in kJ/kg
-ex_an_orc.component_data[ex_an_orc.component_data["E_F"] > 0].round(5).to_csv("orc_ex_an_comp.csv")
+(ex_an_orc.connection_data / 1e3).round(5).to_csv("orc_exan_connections.csv")  # in kJ/kg
+ex_an_orc.component_data[ex_an_orc.component_data["E_F"] > 0].round(5).to_csv("orc_exan_components.csv")
