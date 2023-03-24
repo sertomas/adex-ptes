@@ -93,28 +93,6 @@ def orc_network(working_fluids):
     return orc
 
 
-def hp_234(working_fluids):
-
-    hp = Network(
-            fluids=working_fluids,
-            T_unit="C", p_unit="bar", h_unit="kJ / kg", m_unit="kg / s"
-    )
-
-    condenser_hp = HeatExchangerSimple('condenser hp')
-    compressor = Compressor('compressor')
-    working_fluid_in = Source('inlet working fluid')
-    working_fluid_out = Sink('outlet working fluid')
-
-    # Heat pump cycle
-    c2 = Connection(working_fluid_in, 'out1', compressor, 'in1', label='2')
-    c3 = Connection(compressor, 'out1', condenser_hp, 'in1', label='3')
-    c4 = Connection(condenser_hp, 'out1', working_fluid_out, 'in1', label='4')
-
-    # all connections have to be added to the network
-    hp.add_conns(c2, c3, c4)
-
-    return hp
-
 def hp_open(working_fluids):
 
     hp = Network(
