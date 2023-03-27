@@ -21,7 +21,7 @@ def hp_network(working_fluids):
 
     hp = Network(
             fluids=working_fluids,
-            T_unit="C", p_unit="bar", h_unit="kJ / kg", m_unit="kg / s"
+            T_unit="C", p_unit="bar", h_unit="kJ / kg", m_unit="kg / s", s_unit="kJ / kgK"
     )
 
     cycle_closer = CycleCloser('cycle closer')
@@ -59,7 +59,7 @@ def orc_network(working_fluids):
 
     orc = Network(
         fluids=working_fluids,
-        T_unit="C", p_unit="bar", h_unit="kJ / kg", m_unit="kg / s"
+        T_unit="C", p_unit="bar", h_unit="kJ / kg", m_unit="kg / s", s_unit="kJ / kgK"
     )
 
     cycle_closer_orc = CycleCloser('cycle closer orc')
@@ -97,7 +97,7 @@ def hp_open(working_fluids):
 
     hp = Network(
             fluids=working_fluids,
-            T_unit="C", p_unit="bar", h_unit="kJ / kg", m_unit="kg / s"
+            T_unit="C", p_unit="bar", h_unit="kJ / kg", m_unit="kg / s", s_unit="kJ / kgK"
     )
 
     working_fluid_in = Source('inlet working fluid')

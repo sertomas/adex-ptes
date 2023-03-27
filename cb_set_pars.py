@@ -127,33 +127,3 @@ def hp_settings_open(network, T_amb, delta_t_min, Q_cond, h1, COND=None, EVA=Non
     network.get_conn('1').set_attr(h=h1)
 
     return network
-
-
-def hp_settings_compressor_condenser(network, T_amb, p_amb, delta_t_min, Q_cond, h1):
-
-    # no pressure drops in the condenser and isentropic efficiency of compressor is real
-    network.get_comp('condenser hp').set_attr(pr=p_loss_rel, Q=Q_cond)
-    network.get_comp('evaporator hp').set_attr(pr=1)
-    network.get_comp('compressor').set_attr(eta_s=eta_s_compressor)
-
-    # heat pump cycle
-    network.get_conn('2').set_attr(T=T_amb, p=p_low_hp, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
-    network.get_conn('4').set_attr(T=T_low_TES+delta_t_min, p=p_high_hp)
-    network.get_conn('1').set_attr(h=h1)
-
-    return network
-
-def hp_settings_compressor_evaporator(network, T_amb, p_amb, delta_t_min, Q_cond, h1):
-
-    # no pressure drops in the condenser and isentropic efficiency of compressor is real
-    network.get_comp('condenser hp').set_attr(pr=1, Q=Q_cond)
-    network.get_comp('evaporator hp').set_attr(pr=p_loss_rel)
-    network.get_comp('compressor').set_attr(eta_s=eta_s_compressor)
-
-    # heat pump cycle
-    network.get_conn('2').set_attr(T=T_amb-delta_t_min, p=p_low_hp, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
-    network.get_conn('3').set_attr(p=p_high_hp)
-    network.get_conn('4').set_attr(T=T_low_TES)
-    network.get_conn('1').set_attr(h=h1)
-
-    return network
