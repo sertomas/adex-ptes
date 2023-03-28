@@ -1,15 +1,22 @@
-from tespy.networks import Network
-
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 import numpy as np
-
 from cb_set_pars import hp_settings, orc_settings
 from cb_network import hp_network, orc_network
 from cb_qt_diagram import qt_sens_latent
 from cb_set_pressure import set_pressure
 from cb_exergy import exerg_an_hp, exerg_an_orc
+
+# TODO CODE:
+#  - Give the results as variables/arrays and not from CSV files (function / global variables?)
+#  - Find better way to create data frames / show results
+#  - Try to reduce number of functions / make the code more organic and simple
+
+# TODO MODEL:
+#  - Perform further sensitivity analyses to find better parameters set
+#  - Perform adv. exergy analysis of ORC
+#  - Simulate the TES (connecting HP and ORC?)
+#  - Simulate time series (change ambient conditions)
+#  - Assess flexibility of model by changing pressures, fluid, sizes
+
 
 # 1) set the networks
 hp = hp_network(['R245fa', 'water'])

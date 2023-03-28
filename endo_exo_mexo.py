@@ -78,10 +78,10 @@ def endo_comp(hp_comp_s, bc_s, bc_c, T_amb, COND=None, EVA=None, THR=None, detai
             print("The power produced by the expander of the idealized throttle is", round(W_THR, 3), "kW.")
             print("Compared to the ideal case, the mass flow of the ambient water is", round(m5, 3), "kg/s and not", round(bc_s.loc[5, 'm'], 3), "kg/s.")
             print("The power produced by the heat engine of the idealized evaporator is", round(W_EVA, 3), "kW.")
-            print("The power produced by the idealized heat exchangers and throttle is", round(W_COMP_id, 3), "kW and is equal to the power of the ideal compressor.")
+            print("The power produced by the idealized heat exchangers and throttle is", round(W_COMP_id, 3), "kW and is equal to the power required by the ideal compressor.")
             print("The mass flow going through the ideal compressor is equal to", round(m2_id, 3), "kg/s and is lower than the total mass flow of", round(m2, 3), "kg/s.")
             print("The mass flow going through the real compressor is equal to", round(m2_re, 3),  "kg/s and is lower than the total mass flow of", round(m2, 3), "kg/s.")
-            print("The power produced by the real compressor is", round(W_COMP_re, 3), "kW.")
+            print("The power required by the real compressor is", round(W_COMP_re, 3), "kW.")
     if COND is not None:
         print("COMPRESSOR-CONDESER:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
         print("When the compressor and the condenser are real, the exergy destruction in the compressor is", round(ED_COMP_comp_cond, 3), "kW, compared to the total exergy destruction in the compressor of", round(ED_COMP, 3), "kW.")
@@ -132,7 +132,7 @@ def endo_thr(hp_thr_s, bc_s, bc_c, T_amb):
     return m2, ED_EN_THR
 
 
-def endo_eva(hp_eva_s, bc_s, bc_c, T_amb, COND=None, ED_EN_COND=None, ED_EN_EVA=None):
+def endo_eva(hp_eva_s, bc_s, bc_c, T_amb, COND=None, THR=None, ED_EN_COND=None, ED_EN_EVA=None, ED_EN_THR=None):
     
     if COND is None:
         m2 = bc_s.loc[7, 'm'] * (bc_s.loc[8, 's'] - bc_s.loc[7, 's']) / (hp_eva_s.loc['3', 's'] - hp_eva_s.loc['4', 's'])  # [kW]
@@ -140,14 +140,15 @@ def endo_eva(hp_eva_s, bc_s, bc_c, T_amb, COND=None, ED_EN_COND=None, ED_EN_EVA=
         m2 = bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h']) / (hp_eva_s.loc['4', 'h'] - hp_eva_s.loc['3', 'h'])  # [kg/s]
         ED_COND_eva_cond = m2 * (hp_eva_s.loc['3', 'h'] - hp_eva_s.loc['4', 'h'] - (T_amb + 273.15) * (hp_eva_s.loc['3', 's'] - hp_eva_s.loc['4', 's'])) + bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h'] - (T_amb + 273.15) * (bc_s.loc[7, 's'] - bc_s.loc[8, 's']))
     m5 = m2 * (hp_eva_s.loc['2', 'h'] - hp_eva_s.loc['1', 'h']) / (bc_s.loc[5, 'h'] - bc_s.loc[6, 'h'])  # [kg/s]
+    ED_THR = bc_c.loc['expansion valve', 'E_D'] * 1e-3  # [kW]
     ED_EVA = bc_c.loc['evaporator hp', 'E_D'] * 1e-3  # [kW]
     ED_COND = bc_c.loc['condenser hp', 'E_D'] * 1e-3  # [kW]
-    if COND is None:
+    if COND is None and THR is None:
         ED_EN_EVA = m2 * (hp_eva_s.loc['1', 'h'] - hp_eva_s.loc['2', 'h'] - (T_amb + 273.15) * (hp_eva_s.loc['1', 's'] - hp_eva_s.loc['2', 's'])) + m5 * (bc_s.loc[5, 'h'] - bc_s.loc[6, 'h'] - (T_amb + 273.15) * (bc_s.loc[5, 's'] - bc_s.loc[6, 's']))  # [kW]
         print("EVAPORATOR:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
         print("The endogenous exergy destruction in the evaporator is", round(ED_EN_EVA, 3), "kW, compared to the total value of", round(ED_EVA, 3), "kW.")
         print("The endogenous exergy destruction in the evaporator is", round(ED_EN_EVA / ED_EVA * 100, 1), "% of the total exergy destruction in the evaporator.")
-    else:
+    if COND is not None:
         ED_EVA_eva_cond = m2 * (hp_eva_s.loc['1', 'h'] - hp_eva_s.loc['2', 'h'] - (T_amb + 273.15) * (hp_eva_s.loc['1', 's'] - hp_eva_s.loc['2', 's'])) + m5 * (bc_s.loc[5, 'h'] - bc_s.loc[6, 'h'] - (T_amb + 273.15) * (bc_s.loc[5, 's'] - bc_s.loc[6, 's']))  # [kW]
         print("EVAPORATOR-CONDENSER:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
         print("When the evaporator and the condenser are real, the exergy destruction in the evaporator is", round(ED_EVA_eva_cond, 3), "kW, compared to the total exergy destruction in the evaporator of", round(ED_EVA, 3), "kW.")
@@ -156,19 +157,49 @@ def endo_eva(hp_eva_s, bc_s, bc_c, T_amb, COND=None, ED_EN_COND=None, ED_EN_EVA=
         print("The endogenous exergy destruction in the condenser was", round(ED_EN_COND, 3), "kW,", round(ED_EN_COND / ED_COND * 100, 1), "% of the total.")
         print("The exogenous exergy destruction in the evaporator caused by the interaction with the condenser is", round(ED_EVA_eva_cond - ED_EN_EVA, 3), "kW.")
         print("The exogenous exergy destruction in the condenser caused by the interaction with the evaporator is", round(ED_COND_eva_cond - ED_EN_COND, 3), "kW.")
+    if THR is not None:
+        ED_THR_eva_thr = m2 * (hp_eva_s.loc['4', 'h'] - hp_eva_s.loc['1', 'h'] - (T_amb + 273.15) * (hp_eva_s.loc['4', 's'] - hp_eva_s.loc['1', 's']))  # [kW]
+        ED_EVA_eva_thr = m2 * (hp_eva_s.loc['1', 'h'] - hp_eva_s.loc['2', 'h'] - (T_amb + 273.15) * (hp_eva_s.loc['1', 's'] - hp_eva_s.loc['2', 's'])) + m5 * (bc_s.loc[5, 'h'] - bc_s.loc[6, 'h'] - (T_amb + 273.15) * (bc_s.loc[5, 's'] - bc_s.loc[6, 's']))  # [kW]
+        print("EVAPORATOR-THROTTLE:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
+        print("When the evaporator and the throttle are real, the exergy destruction in the evaporator is", round(ED_EVA_eva_thr, 3), "kW, compared to the total exergy destruction in the evaporator of", round(ED_EVA, 3), "kW.")
+        print("When the evaporator and the throttle are real, the exergy destruction in the throttle is", round(ED_THR_eva_thr, 3), "kW, compared to the total exergy destruction in the throttle of", round(ED_THR, 3), "kW.")
+        print("The endogenous exergy destruction in the evaporator was", round(ED_EN_EVA, 3), "kW,", round(ED_EN_EVA / ED_EVA * 100, 1), "% of the total.")
+        print("The endogenous exergy destruction in the throttle was", round(ED_EN_THR, 3), "kW,", round(ED_EN_THR / ED_THR * 100, 1), "% of the total.")
+        print("The exogenous exergy destruction in the evaporator caused by the interaction with the throttle is", round(ED_EVA_eva_thr - ED_EN_EVA, 3), "kW.")
+        print("The exogenous exergy destruction in the throttle caused by the interaction with the evaporator is", round(ED_THR_eva_thr - ED_EN_THR, 3), "kW.")
 
-    if COND is None:
+    if COND is None and THR is None:
         return m2, ED_EN_EVA
-    else:
+    if COND is not None:
         return m2, ED_EVA_eva_cond, ED_COND_eva_cond
+    if THR is not None:
+        return m2, ED_EVA_eva_thr, ED_THR_eva_thr
 
-def endo_cond(hp_cond_s, bc_s, bc_c, T_amb):
+
+def endo_cond(hp_cond_s, bc_s, bc_c, T_amb, THR=None, ED_EN_COND=None, ED_EN_THR=None):
 
     m2 = bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h']) / (hp_cond_s.loc['4', 'h'] - hp_cond_s.loc['3', 'h'])  # [kg/s]
-    print("CONDENSER:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
-    ED_EN_COND = m2 * (hp_cond_s.loc['3', 'h'] - hp_cond_s.loc['4', 'h'] - (T_amb + 273.15) * (hp_cond_s.loc['3', 's'] - hp_cond_s.loc['4', 's'])) + bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h'] - (T_amb + 273.15) * (bc_s.loc[7, 's'] - bc_s.loc[8, 's']))  # [kW]
+    if THR is None:
+        ED_EN_COND = m2 * (hp_cond_s.loc['3', 'h'] - hp_cond_s.loc['4', 'h'] - (T_amb + 273.15) * (hp_cond_s.loc['3', 's'] - hp_cond_s.loc['4', 's'])) + bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h'] - (T_amb + 273.15) * (bc_s.loc[7, 's'] - bc_s.loc[8, 's']))  # [kW]
+    else:
+        ED_COND_cond_thr = m2 * (hp_cond_s.loc['3', 'h'] - hp_cond_s.loc['4', 'h'] - (T_amb + 273.15) * (hp_cond_s.loc['3', 's'] - hp_cond_s.loc['4', 's'])) + bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h'] - (T_amb + 273.15) * (bc_s.loc[7, 's'] - bc_s.loc[8, 's']))  # [kW]
     ED_COND = bc_c.loc['condenser hp', 'E_D'] * 1e-3  # [kW]
-    print("The endogenous exergy destruction in the condenser is", round(ED_EN_COND, 3), "kW, compared to the total value of", round(ED_COND, 3), "kW.")
-    print("The endogenous exergy destruction in the condenser is", round(ED_EN_COND / ED_COND * 100, 1), "% of the total exergy destruction in the condenser.")
+    ED_THR = bc_c.loc['expansion valve', 'E_D'] * 1e-3  # [kW]
+    if THR is None:
+        print("CONDENSER:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
+        print("The endogenous exergy destruction in the condenser is", round(ED_EN_COND, 3), "kW, compared to the total value of", round(ED_COND, 3), "kW.")
+        print("The endogenous exergy destruction in the condenser is", round(ED_EN_COND / ED_COND * 100, 1), "% of the total exergy destruction in the condenser.")
+    else:
+        ED_THR_cond_thr = m2 * (hp_cond_s.loc['4', 'h'] - hp_cond_s.loc['1', 'h'] - (T_amb + 273.15) * (hp_cond_s.loc['4', 's'] - hp_cond_s.loc['1', 's']))  # [kW]
+        print("CONDENSER-THROTTLE:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
+        print("When the condenser and the throttle are real, the exergy destruction in the evaporator is", round(ED_COND_cond_thr, 3), "kW, compared to the total exergy destruction in the condenser of", round(ED_COND, 3), "kW.")
+        print("When the condenser and the throttle are real, the exergy destruction in the throttle is", round(ED_THR_cond_thr, 3), "kW, compared to the total exergy destruction in the throttle of", round(ED_THR, 3), "kW.")
+        print("The endogenous exergy destruction in the condenser was", round(ED_EN_COND, 3), "kW,", round(ED_EN_COND / ED_COND * 100, 1), "% of the total.")
+        print("The endogenous exergy destruction in the throttle was", round(ED_EN_THR, 3), "kW,", round(ED_EN_THR / ED_THR * 100, 1), "% of the total.")
+        print("The exogenous exergy destruction in the condenser caused by the interaction with the throttle is", round(ED_COND_cond_thr - ED_EN_COND, 3), "kW.")
+        print("The exogenous exergy destruction in the throttle caused by the interaction with the condenser is", round(ED_THR_cond_thr - ED_EN_THR, 3), "kW.")
 
-    return m2, ED_EN_COND
+    if THR is None:
+        return m2, ED_EN_COND
+    else:
+        return m2, ED_COND_cond_thr, ED_THR_cond_thr

@@ -22,7 +22,7 @@ s4_id_delta_T = cp.PropsSI('S', 'P', bc_s.loc[4, 'p'] * 1e5, 'T', bc_s.loc[7, 'T
 h1_id = cp.PropsSI('H', 'P', bc_s.loc[2, 'p'] * 1e5, 'S', s4_id * 1e3, 'R245fa') * 1e-3  # [kJ/kg] enthalpy after expansion (h1=f(s4,p1)) in fully ideal system
 h1_id_delta_T = cp.PropsSI('H', 'P', bc_s.loc[2, 'p'] * 1e5, 'S', s4_id_delta_T * 1e3, 'R245fa') * 1e-3  # [kJ/kg] enthalpy after expansion (h1=f(s4,p1)) with minimal temperature difference in condenser
 h1_id_p_loss = cp.PropsSI('H', 'P', bc_s.loc[1, 'p'] * 1e5, 'S', s4_id * 1e3, 'R245fa') * 1e-3  # [kJ/kg] enthalpy after expansion (h1=f(s4,p1)) with pressure drops in expander
-h1_id_thr = cp.PropsSI('H', 'P', bc_s.loc[4, 'p'] * 1e5, 'S', bc_s.loc[4, 's'] * 1e3, 'R245fa') * 1e-3  # [kJ/kg] enthalpy before and after the throttle is the same
+h1_id_thr = cp.PropsSI('H', 'P', bc_s.loc[4, 'p'] * 1e5, 'S', s4_id * 1e3, 'R245fa') * 1e-3  # [kJ/kg] enthalpy before and after the throttle is the same
 h1_id_delta_T_p_loss = cp.PropsSI('H', 'P', bc_s.loc[1, 'p'] * 1e5, 'S', s4_id_delta_T * 1e3, 'R245fa') * 1e-3  # [kJ/kg] enthalpy after expansion (h1=f(s4,p1)) with pressure drops in expander and minimal temperature difference in condenser
 
 
@@ -31,8 +31,10 @@ hp_ideal = hp_open(['R245fa', 'water'])  # open cycle is used because TESPy Turb
 hp_settings_ideal(hp_ideal, T_amb, p_amb, delta_t_min, Q_cond*1e3, h1_id)
 hp_ideal.solve(mode='design')
 hp_ideal.results['Connection'].round(5).to_csv("adex_ideal.csv")
-hp_cond_s = hp_ideal.results['Connection']
+hp_ideal_s = hp_ideal.results['Connection']
 
+m2_id = bc_s.loc[7, 'm'] * (bc_s.loc[8, 's'] - bc_s.loc[7, 's']) / (hp_ideal_s.loc['3', 's'] - hp_ideal_s.loc['4', 's'])  # [kg/s]
+print('In the ideal case, the mass flow is equal to', round(m2_id, 3), 'kg/s.')
 
 # --- ED_EN OF COMPRESSOR ----------------------------------------------------------------------------------------------
 
@@ -42,7 +44,7 @@ hp_comp.solve(mode='design')
 hp_comp.results['Connection'].round(5).to_csv("adex_comp.csv")
 hp_comp_s = hp_comp.results['Connection']
 
-m2_comp, ED_EN_COMP = endo_comp(hp_comp_s, bc_s, bc_c, delta_t_min)
+m2_comp, ED_EN_COMP = endo_comp(hp_comp_s, bc_s, bc_c, delta_t_min, details=True)
 
 
 # --- ED_EN OF THROTTLE  -----------------------------------------------------------------------------------------------
@@ -80,17 +82,16 @@ m2_cond, ED_EN_COND = endo_cond(hp_cond_s, bc_s, bc_c, T_amb)
 
 # --- RESULTS OF ED_EN -------------------------------------------------------------------------------------------------
 
-ED_EN = [ED_EN_COMP, ED_EN_THR, ED_EN_EVA, ED_EN_COND]
-ED_EN = [x / 1000 for x in ED_EN]  # [kW]
-m2 = [m2_comp, m2_thr, m2_eva, m2_cond]  # [kg/s]
+ED_EN = [ED_EN_EVA, ED_EN_THR, ED_EN_COMP, ED_EN_COND]
+m2 = [m2_eva, m2_thr, m2_comp, m2_cond]  # [kg/s]
 
 df_endog_ed = pd.DataFrame(index=bc_c.index)
 df_endog_ed["m2 [kg/s]"] = m2
 df_endog_ed["ED [kW]"] = bc_c["E_D"] * 1e-3
-df_endog_ed["epsilon"] = bc_c["epsilon"] * 100
+df_endog_ed["epsilon"] = bc_c["epsilon"]
 df_endog_ed["ED_EN [kW]"] = ED_EN
 df_endog_ed["ED_EX [kW]"] = df_endog_ed["ED [kW]"] - df_endog_ed["ED_EN [kW]"]
-df_endog_ed["ED_EN share [%]"] = df_endog_ed["ED_EN [kW]"] / df_endog_ed["ED [kW]"] * 100
+df_endog_ed["ED_EN share [-]"] = df_endog_ed["ED_EN [kW]"] / df_endog_ed["ED [kW]"]
 df_endog_ed.round(3).to_csv("hp_endog.csv")
 
 
@@ -138,6 +139,81 @@ hp_eva_cond_s = hp_eva_cond.results['Connection']
 m2_eva_cond, ED_EVA_eva_cond, ED_COND_eva_cond = endo_eva(hp_eva_cond_s, bc_s, bc_c, T_amb, COND=True, ED_EN_EVA=ED_EN_EVA, ED_EN_COND=ED_EN_COND)
 
 
+# --- ED_MEXO OF EVAPORATOR AND CONDENSER ------------------------------------------------------------------------------
+
+hp_eva_thr = hp_open(['R245fa', 'water'])
+hp_settings_open(hp_eva_thr, T_amb, delta_t_min, Q_cond*1e3, h1_id_thr, EVA=True)
+hp_eva_thr.solve(mode='design')
+hp_eva_thr.results['Connection'].round(5).to_csv("adex_eva_thr.csv")
+hp_eva_thr_s = hp_eva_thr.results['Connection']
+
+m2_eva_thr, ED_EVA_eva_thr, ED_THR_eva_thr = endo_eva(hp_eva_cond_s, bc_s, bc_c, T_amb, THR=True, ED_EN_EVA=ED_EN_EVA, ED_EN_THR=ED_EN_THR)
+
+
+# --- ED_MEXO OF CONDENSER AND THROTTLE ------------------------------------------------------------------------------
+
+hp_cond_thr = hp_open(['R245fa', 'water'])
+hp_settings_open(hp_cond_thr, T_amb, delta_t_min, Q_cond*1e3, bc_s.loc[1, 'h'], COND=True)
+hp_cond_thr.solve(mode='design')
+hp_cond_thr.results['Connection'].round(5).to_csv("adex_eva_thr.csv")
+hp_cond_thr_s = hp_cond_thr.results['Connection']
+
+m2_cond_thr, ED_COND_cond_thr, ED_THR_cond_thr = endo_cond(hp_cond_thr_s, bc_s, bc_c, T_amb, THR=True, ED_EN_COND=ED_EN_COND, ED_EN_THR=ED_EN_THR)
+
+
 # --- RESULTS OF ED_MEXO -----------------------------------------------------------------------------------------------
 
-ED_MEXO_COMP = ED_COMP_comp_cond + ED_COMP_comp_eva + ED_COMP_comp_thr
+ED_MEXO_COMP = bc_c.loc['compressor', 'E_D'] * 1e-3 - ED_EN_COMP - ((ED_COMP_comp_cond + ED_COMP_comp_eva + ED_COMP_comp_thr) - 3 * ED_EN_COMP)
+ED_MEXO_EVA = bc_c.loc['evaporator hp', 'E_D'] * 1e-3 - ED_EN_EVA - ((ED_EVA_eva_thr + ED_EVA_comp_eva + ED_EVA_eva_cond) - 3 * ED_EN_EVA)
+ED_MEXO_COND = bc_c.loc['condenser hp', 'E_D'] * 1e-3 - ED_EN_COND - ((ED_COND_comp_cond + ED_COND_eva_cond + ED_COND_cond_thr) - 3 * ED_EN_COND)
+ED_MEXO_THR = bc_c.loc['expansion valve', 'E_D'] * 1e-3 - ED_EN_THR - ((ED_THR_eva_thr + ED_THR_comp_thr + ED_THR_cond_thr) - 3 * ED_EN_THR)
+
+# The following data frame must be created in a more efficient way
+df_mexo_ed = pd.DataFrame(index=pd.MultiIndex.from_tuples([('Compressor', 'Total'), ('Compressor', 'Condenser'), ('Compressor', 'Evaporator'), ('Compressor', 'Throttle'), ('Evaporator', 'Total'), ('Evaporator', 'Condenser'), ('Evaporator', 'Compressor'), ('Evaporator', 'Throttle')]))
+df_mexo_ed.loc[('Compressor', 'Total'), 'ED [kW]'] = bc_c.loc['compressor', 'E_D'] * 1e-3
+df_mexo_ed.loc[('Compressor', 'Total'), 'ED_EN [kW]'] = ED_EN_COMP
+df_mexo_ed.loc[('Compressor', 'Total'), 'ED_EX [kW]'] = bc_c.loc['compressor', 'E_D'] * 1e-3 - ED_EN_COMP
+df_mexo_ed.loc[('Compressor', 'Total'), 'm2 [kg/s]'] = m2_comp
+df_mexo_ed.loc[('Compressor', 'Condenser'), 'ED_EX_l [kW]'] = ED_COMP_comp_cond - ED_EN_COMP
+df_mexo_ed.loc[('Compressor', 'Condenser'), 'm2 [kg/s]'] = m2_comp_cond
+df_mexo_ed.loc[('Compressor', 'Evaporator'), 'ED_EX_l [kW]'] = ED_COMP_comp_eva - ED_EN_COMP
+df_mexo_ed.loc[('Compressor', 'Evaporator'), 'm2 [kg/s]'] = m2_comp_eva
+df_mexo_ed.loc[('Compressor', 'Throttle'), 'ED_EX_l [kW]'] = ED_COMP_comp_thr - ED_EN_COMP
+df_mexo_ed.loc[('Compressor', 'Throttle'), 'm2 [kg/s]'] = m2_comp_thr
+df_mexo_ed.loc[('Compressor', 'Total'), 'ED_MEXO [kW]'] = ED_MEXO_COMP
+df_mexo_ed.loc[('Evaporator', 'Total'), 'ED [kW]'] = bc_c.loc['evaporator hp', 'E_D'] * 1e-3
+df_mexo_ed.loc[('Evaporator', 'Total'), 'ED_EN [kW]'] = ED_EN_EVA
+df_mexo_ed.loc[('Evaporator', 'Total'), 'ED_EX [kW]'] = bc_c.loc['evaporator hp', 'E_D'] * 1e-3 - ED_EN_EVA
+df_mexo_ed.loc[('Evaporator', 'Total'), 'm2 [kg/s]'] = m2_eva
+df_mexo_ed.loc[('Evaporator', 'Compressor'), 'ED_EX_l [kW]'] = ED_EVA_comp_eva - ED_EN_EVA
+df_mexo_ed.loc[('Evaporator', 'Compressor'), 'm2 [kg/s]'] = m2_comp_eva
+df_mexo_ed.loc[('Evaporator', 'Condenser'), 'ED_EX_l [kW]'] = ED_EVA_eva_cond - ED_EN_EVA
+df_mexo_ed.loc[('Evaporator', 'Condenser'), 'm2 [kg/s]'] = m2_eva_cond
+df_mexo_ed.loc[('Evaporator', 'Throttle'), 'ED_EX_l [kW]'] = ED_EVA_eva_thr - ED_EN_EVA
+df_mexo_ed.loc[('Evaporator', 'Throttle'), 'm2 [kg/s]'] = m2_eva_thr
+df_mexo_ed.loc[('Evaporator', 'Total'), 'ED_MEXO [kW]'] = ED_MEXO_EVA
+df_mexo_ed.loc[('Condenser', 'Total'), 'ED [kW]'] = bc_c.loc['condenser hp', 'E_D'] * 1e-3
+df_mexo_ed.loc[('Condenser', 'Total'), 'ED_EN [kW]'] = ED_EN_COND
+df_mexo_ed.loc[('Condenser', 'Total'), 'ED_EX [kW]'] = bc_c.loc['condenser hp', 'E_D'] * 1e-3 - ED_EN_COND
+df_mexo_ed.loc[('Condenser', 'Total'), 'm2 [kg/s]'] = m2_cond
+df_mexo_ed.loc[('Condenser', 'Compressor'), 'ED_EX_l [kW]'] = ED_COND_comp_cond - ED_EN_COND
+df_mexo_ed.loc[('Condenser', 'Compressor'), 'm2 [kg/s]'] = m2_comp_cond
+df_mexo_ed.loc[('Condenser', 'Evaporator'), 'ED_EX_l [kW]'] = ED_COND_eva_cond - ED_EN_COND
+df_mexo_ed.loc[('Condenser', 'Evaporator'), 'm2 [kg/s]'] = m2_eva_cond
+df_mexo_ed.loc[('Condenser', 'Throttle'), 'ED_EX_l [kW]'] = ED_COND_cond_thr - ED_EN_COND
+df_mexo_ed.loc[('Condenser', 'Throttle'), 'm2 [kg/s]'] = m2_cond_thr
+df_mexo_ed.loc[('Condenser', 'Total'), 'ED_MEXO [kW]'] = ED_MEXO_COND
+df_mexo_ed.loc[('Throttle', 'Total'), 'ED [kW]'] = bc_c.loc['expansion valve', 'E_D'] * 1e-3
+df_mexo_ed.loc[('Throttle', 'Total'), 'ED_EN [kW]'] = ED_EN_THR
+df_mexo_ed.loc[('Throttle', 'Total'), 'ED_EX [kW]'] = bc_c.loc['expansion valve', 'E_D'] * 1e-3 - ED_EN_THR
+df_mexo_ed.loc[('Throttle', 'Total'), 'm2 [kg/s]'] = m2_thr
+df_mexo_ed.loc[('Throttle', 'Compressor'), 'ED_EX_l [kW]'] = ED_THR_comp_thr - ED_EN_THR
+df_mexo_ed.loc[('Throttle', 'Compressor'), 'm2 [kg/s]'] = m2_comp_thr
+df_mexo_ed.loc[('Throttle', 'Evaporator'), 'ED_EX_l [kW]'] = ED_THR_eva_thr - ED_EN_THR
+df_mexo_ed.loc[('Throttle', 'Evaporator'), 'm2 [kg/s]'] = m2_eva_thr
+df_mexo_ed.loc[('Throttle', 'Condenser'), 'ED_EX_l [kW]'] = ED_THR_cond_thr - ED_EN_THR
+df_mexo_ed.loc[('Throttle', 'Condenser'), 'm2 [kg/s]'] = m2_cond_thr
+df_mexo_ed.loc[('Throttle', 'Total'), 'ED_MEXO [kW]'] = ED_MEXO_THR
+df_mexo_ed.round(3).to_csv("hp_mexo.csv")
+
+
