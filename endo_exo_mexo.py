@@ -1,8 +1,8 @@
 import CoolProp.CoolProp as cp
+from config import delta_t_min, T_amb, p_amb
 
-
-def endo_comp(hp_comp_s, bc_s, bc_c, T_amb, COND=None, EVA=None, THR=None, details=None, ED_EN_COMP=None, ED_EN_COND=None, ED_EN_EVA=None, ED_EN_THR=None):
-
+def endo_comp(hp_comp_s, bc_s, bc_c, COND=None, EVA=None, THR=None, details=None, ED_EN_COMP=None, ED_EN_COND=None, ED_EN_EVA=None, ED_EN_THR=None):
+    print(hp_comp_s.h)
     # h3 and s3 are unknown, the simulation provides only h3_re and s3_re
     # h3 and s3 are given as start value using a simple average (50%-50%) between the real and the ideal values
     h3_id = cp.PropsSI('H', 'P', hp_comp_s.loc['3', 'p'] * 1e5, 'S', hp_comp_s.loc['2', 's'] * 1e3, 'R245fa') * 1e-3  # [kJ/kg] enthalpy after ideal compressor
@@ -14,12 +14,15 @@ def endo_comp(hp_comp_s, bc_s, bc_c, T_amb, COND=None, EVA=None, THR=None, detai
     diff = 1
     iter_step = 1
     while diff > toll:
-        m2 = bc_s.loc[7, 'm'] * (bc_s.loc[8, 's'] - bc_s.loc[7, 's']) / (s3 - hp_comp_s.loc['4', 's'])  # [kg/s]
+        if COND is None:
+            m2 = bc_s.loc[7, 'm'] * (bc_s.loc[8, 's'] - bc_s.loc[7, 's']) / (s3 - hp_comp_s.loc['4', 's'])  # [kg/s]
+        else:
+            m2 = bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h']) / (hp_comp_s.loc['4', 'h'] - h3)  # [kg/s]
         if THR is None:
             W_THR = m2 * (hp_comp_s.loc['4', 'h'] - hp_comp_s.loc['1', 'h'])  # [kW]
         else:
-            s4_thr = cp.PropsSI('S', 'P', bc_s.loc[4, 'p'] * 1e5, 'T', bc_s.loc[7, 'T'] + 273.15, 'R245fa') * 1e-3  # [kJ/kgK]
-            ED_THR_comp_thr = m2 * (- (T_amb + 273.15) * (s4_thr - hp_comp_s.loc['1', 's']))  # [kW]
+            ED_THR_comp_thr = m2 * (hp_comp_s.loc['4', 'h'] - hp_comp_s.loc['1', 'h'] - (T_amb + 273.15) * (hp_comp_s.loc['4', 's'] - hp_comp_s.loc['1', 's']))  # [kW]
+            print(- (T_amb + 273.15) * (hp_comp_s.loc['4', 's'] - hp_comp_s.loc['1', 's']))
         s6_id = cp.PropsSI('S', 'P', bc_s.loc[5, 'p'] * 1e5, 'T', bc_s.loc[6, 'T'] + 273.15, 'water') * 1e-3  # [kJ/kgK] entropy of idealized outgoing ambient water
         h6_id = cp.PropsSI('H', 'P', bc_s.loc[5, 'p'] * 1e5, 'T', bc_s.loc[6, 'T'] + 273.15, 'water') * 1e-3  # [kJ/kg] enthalpy of idealized outgoing ambient water
         s6_re = cp.PropsSI('S', 'P', bc_s.loc[6, 'p'] * 1e5, 'T', bc_s.loc[6, 'T'] + 273.15, 'water') * 1e-3  # [kJ/kgK] entropy of real outgoing ambient water
@@ -33,7 +36,7 @@ def endo_comp(hp_comp_s, bc_s, bc_c, T_amb, COND=None, EVA=None, THR=None, detai
         if COND is None:
             W_COND = m2 * (hp_comp_s.loc['3', 'h'] - hp_comp_s.loc['4', 'h']) + bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h'])  # [kW]
         else:
-            ED_COND_comp_cond = m2 * (hp_comp_s.loc['3', 'h'] - hp_comp_s.loc['4', 'h']) + bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h'])  # [kW]
+            ED_COND_comp_cond = m2 * (hp_comp_s.loc['3', 'h'] - hp_comp_s.loc['4', 'h'] - (T_amb + 273.15) * (hp_comp_s.loc['3', 's'] - hp_comp_s.loc['4', 's'])) + bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h'] - (T_amb + 273.15) * (bc_s.loc[7, 's'] - bc_s.loc[8, 's']))  # [kW]
         if EVA is None and COND is None and THR is None:
             W_COMP_id = W_COND + W_THR + W_EVA  # [kW]
         if COND is not None:
@@ -69,7 +72,7 @@ def endo_comp(hp_comp_s, bc_s, bc_c, T_amb, COND=None, EVA=None, THR=None, detai
     ED_EVA = bc_c.loc['evaporator hp', 'E_D'] * 1e-3  # [kW]
     ED_THR = bc_c.loc['expansion valve', 'E_D'] * 1e-3  # [kW]
 
-    if COND is None and EVA is None:
+    if COND is None and EVA is None and THR is None:
         print("COMPRESSOR:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
         print("The endogenous exergy destruction in the compressor is", round(ED_EN_COMP, 3), "kW, compared to the total value of", round(ED_COMP, 3), "kW.")
         print("The endogenous exergy destruction in the compressor is", round(ED_EN_COMP / ED_COMP * 100, 1), "% of the total exergy destruction in the compressor.")
@@ -108,6 +111,7 @@ def endo_comp(hp_comp_s, bc_s, bc_c, T_amb, COND=None, EVA=None, THR=None, detai
         print("The endogenous exergy destruction in the throttle was", round(ED_EN_THR, 3), "kW,", round(ED_EN_THR / ED_THR * 100, 1), "% of the total.")
         print("The exogenous exergy destruction in the compressor caused by the interaction with the throttle is", round(ED_COMP_comp_thr - ED_EN_COMP, 3), "kW.")
         print("The exogenous exergy destruction in the throttle caused by the interaction with the compressor is", round(ED_THR_comp_thr - ED_EN_THR, 3), "kW.")
+        print("(hp_comp_s.loc['4', 'h'] - hp_comp_s.loc['1', 'h'] - (T_amb + 273.15) * (hp_comp_s.loc['4', 's'] - hp_comp_s.loc['1', 's'])) = ", (- (T_amb + 273.15) * (hp_comp_s.loc['4', 's'] - hp_comp_s.loc['1', 's'])))
 
     if COND is None and EVA is None and THR is None:
         return m2, ED_EN_COMP
@@ -119,20 +123,20 @@ def endo_comp(hp_comp_s, bc_s, bc_c, T_amb, COND=None, EVA=None, THR=None, detai
         return m2, ED_COMP_comp_thr, ED_THR_comp_thr
 
 
-def endo_thr(hp_thr_s, bc_s, bc_c, T_amb):
-
+def endo_thr(hp_thr_s, bc_s, bc_c):
+    print(hp_thr_s.h)
     m2 = bc_s.loc[7, 'm'] * (bc_s.loc[8, 's'] - bc_s.loc[7, 's']) / (hp_thr_s.loc['3', 's'] - hp_thr_s.loc['4', 's'])  # [kg/s]
-    e4_minus_e1 = hp_thr_s.loc['4', 'h'] - hp_thr_s.loc['1', 'h'] - (T_amb + 273.15) * (hp_thr_s.loc['4', 's'] - hp_thr_s.loc['1', 's'])  # [kJ/kg]
-    ED_EN_THR = m2 * e4_minus_e1  # [kW]
+    ED_EN_THR = m2 * (hp_thr_s.loc['4', 'h'] - hp_thr_s.loc['1', 'h'] - (T_amb + 273.15) * (hp_thr_s.loc['4', 's'] - hp_thr_s.loc['1', 's']))  # [kW]
     ED_THR = bc_c.loc['expansion valve', 'E_D'] * 1e-3  # [kW]
     print("THROTTLE:\nCompared to the ideal case, the mass flow in the HP cycle is", round(m2, 3), "kg/s and not", round(bc_s.loc[2, 'm'], 3), "kg/s.")
     print("The endogenous exergy destruction in the throttle is", round(ED_EN_THR, 3), "compared to the total value of", round(ED_THR, 3), "kW.")
     print("The endogenous exergy destruction in the throttle is", round(ED_EN_THR / ED_THR * 100, 1), "% of the total exergy destruction in the throttle.")
+    print("(hp_thr_s.loc['4', 'h'] - hp_thr_s.loc['1', 'h'] - (T_amb + 273.15) * (hp_thr_s.loc['4', 's'] - hp_thr_s.loc['1', 's'])) = ", (- (T_amb + 273.15) * (hp_thr_s.loc['4', 's'] - hp_thr_s.loc['1', 's'])))
 
     return m2, ED_EN_THR
 
 
-def endo_eva(hp_eva_s, bc_s, bc_c, T_amb, COND=None, THR=None, ED_EN_COND=None, ED_EN_EVA=None, ED_EN_THR=None):
+def endo_eva(hp_eva_s, bc_s, bc_c, COND=None, THR=None, ED_EN_COND=None, ED_EN_EVA=None, ED_EN_THR=None):
     
     if COND is None:
         m2 = bc_s.loc[7, 'm'] * (bc_s.loc[8, 's'] - bc_s.loc[7, 's']) / (hp_eva_s.loc['3', 's'] - hp_eva_s.loc['4', 's'])  # [kW]
@@ -176,7 +180,7 @@ def endo_eva(hp_eva_s, bc_s, bc_c, T_amb, COND=None, THR=None, ED_EN_COND=None, 
         return m2, ED_EVA_eva_thr, ED_THR_eva_thr
 
 
-def endo_cond(hp_cond_s, bc_s, bc_c, T_amb, THR=None, ED_EN_COND=None, ED_EN_THR=None):
+def endo_cond(hp_cond_s, bc_s, bc_c, THR=None, ED_EN_COND=None, ED_EN_THR=None):
 
     m2 = bc_s.loc[7, 'm'] * (bc_s.loc[7, 'h'] - bc_s.loc[8, 'h']) / (hp_cond_s.loc['4', 'h'] - hp_cond_s.loc['3', 'h'])  # [kg/s]
     if THR is None:

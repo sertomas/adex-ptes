@@ -1,12 +1,12 @@
 # "exerg_an_hp" perform a conventional exergy analysis of the heat pump
 # "exerg_an_orc" perform a conventional exergy analysis of the ORC
 
-from tespy.networks import Network
+from config import delta_t_min, T_amb, p_amb
 from tespy.connections import Connection, Bus, Ref
 from tespy.tools import ExergyAnalysis
 
 
-def exerg_an_hp(hp, T_amb, p_amb):
+def exerg_an_hp(hp):
 
     # 1) set exergy streams and add them to the networks
 
@@ -31,7 +31,7 @@ def exerg_an_hp(hp, T_amb, p_amb):
     return ex_an_hp
 
 
-def exerg_an_orc(orc, T_amb, p_amb):
+def exerg_an_orc(orc):
 
     # 1) set exergy streams and add them to the networks
 

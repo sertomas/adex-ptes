@@ -5,6 +5,8 @@ from cb_qt_diagram import qt_sens_latent
 from cb_set_pressure import set_pressure
 from cb_exergy import exerg_an_hp, exerg_an_orc
 
+from config import delta_t_min, T_amb, p_amb, P_in
+
 # TODO CODE:
 #  - Give the results as variables/arrays and not from CSV files (function / global variables?)
 #  - Find better way to create data frames / show results
@@ -24,11 +26,8 @@ orc = orc_network(['R245fa', 'water'])
 
 # 2) set the parameters, the initial values and the design variables
 # as well as the ambient conditions and the minimum temperature difference
-delta_t_min = 5  # minimum temperature difference [K]
-T_amb = 10  # temperature of ambient [°C]
-p_amb = 1.013  # pressure of ambient [bar]
-hp_settings(hp, T_amb, p_amb, delta_t_min)
-orc_settings(orc, T_amb, p_amb, delta_t_min)
+hp_settings(hp, P_in)
+orc_settings(orc)
 
 # 3) solve the problem and store the results in .csv files
 hp.solve(mode='design')
@@ -39,10 +38,10 @@ orc.results['Connection'].round(5).to_csv("orc_results.csv")
 
 # 4a) check QT-diagrams and correct the pressures
 delta_t_he = [
-    qt_sens_latent(hp.get_conn('5'), hp.get_conn('6'), hp.get_conn('2'), hp.get_conn('1'), delta_t_min, True),
-    qt_sens_latent(hp.get_conn('8'), hp.get_conn('7'), hp.get_conn('3'), hp.get_conn('4'), delta_t_min, True),
-    qt_sens_latent(orc.get_conn('17'), orc.get_conn('18'), orc.get_conn('14'), orc.get_conn('13'), delta_t_min, True),
-    qt_sens_latent(orc.get_conn('16'), orc.get_conn('15'), orc.get_conn('11'), orc.get_conn('12'), delta_t_min, True)
+    qt_sens_latent(hp.get_conn('5'), hp.get_conn('6'), hp.get_conn('2'), hp.get_conn('1'), delta_t_min, False),
+    qt_sens_latent(hp.get_conn('8'), hp.get_conn('7'), hp.get_conn('3'), hp.get_conn('4'), delta_t_min, False),
+    qt_sens_latent(orc.get_conn('17'), orc.get_conn('18'), orc.get_conn('14'), orc.get_conn('13'), delta_t_min, False),
+    qt_sens_latent(orc.get_conn('16'), orc.get_conn('15'), orc.get_conn('11'), orc.get_conn('12'), delta_t_min, False)
     ]
 
 # in case one or more heat exchangers have too small temperature difference,
@@ -89,10 +88,11 @@ if min(delta_t_he) < delta_t_min - 1e-5:
           "Set new parameters or perform a sensitivity analysis.")
 
 # 5) conventional exergy analysis
-ex_an_hp = exerg_an_hp(hp, T_amb, p_amb)
+ex_an_hp = exerg_an_hp(hp)
 (ex_an_hp.connection_data / 1e3).round(5).to_csv("hp_exan_connections.csv")  # in kJ/kg
 ex_an_hp.component_data[ex_an_hp.component_data["E_F"] > 0].round(5).to_csv("hp_exan_components.csv")
 
-ex_an_orc =exerg_an_orc(orc, T_amb, p_amb)
+ex_an_orc =exerg_an_orc(orc)
 (ex_an_orc.connection_data / 1e3).round(5).to_csv("orc_exan_connections.csv")  # in kJ/kg
 ex_an_orc.component_data[ex_an_orc.component_data["E_F"] > 0].round(5).to_csv("orc_exan_components.csv")
+

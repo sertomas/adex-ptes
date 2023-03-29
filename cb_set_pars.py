@@ -2,6 +2,8 @@
 # "orc_settings" sets the initial values, parameters and design variables of the ORC
 # "hp_settings_234" sets the initial values, parameters and design variables of the open heat pump with states 2-3-4
 
+from config import delta_t_min, T_amb, p_amb, P_in
+
 # --- OVERALL ------------------------------------------------------------
 
 # set here the pressure drops in all heat exchangers (for now the same everywhere)
@@ -13,7 +15,6 @@ T_high_TES = 130  # high temperature of the water in the TES [°C]
 
 
 # --- HEAT PUMP ------------------------------------------------------------
-inlet_power = 1.5e6  # power to compressor [W]
 p_low_hp = 0.45  # inlet pressure of compressor [bar]
 p_high_hp = 25.5  # outlet pressure of condenser [bar]
 eta_s_compressor = 0.85  # isentropic efficiency of compressor
@@ -27,7 +28,7 @@ eta_s_pump = 0.85  # isentropic efficiency of pump
 eta_s_turbine = 0.85  # isentropic efficiency of turbine
 
 
-def hp_settings(network, T_amb, p_amb, delta_t_min):
+def hp_settings(network, P):
 
     # pressure drops and isentropic efficiencies
     network.get_comp('evaporator hp').set_attr(pr1=p_loss_rel, pr2=p_loss_rel)
@@ -35,7 +36,7 @@ def hp_settings(network, T_amb, p_amb, delta_t_min):
     network.get_comp('compressor').set_attr(eta_s=eta_s_compressor)
 
     # heat pump cycle
-    network.get_comp('compressor').set_attr(P=inlet_power)
+    network.get_comp('compressor').set_attr(P=P_in)
     network.get_conn('2').set_attr(T=T_amb-delta_t_min, p=p_low_hp, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
     network.get_conn('4').set_attr(p=p_high_hp)
     network.get_comp('condenser hp').set_attr(ttd_l=5)
@@ -51,7 +52,7 @@ def hp_settings(network, T_amb, p_amb, delta_t_min):
     return network
 
 
-def orc_settings(network, T_amb, p_amb, delta_t_min):
+def orc_settings(network):
 
     # pressure drops and isentropic efficiencies
     network.get_comp('evaporator orc').set_attr(pr1=p_loss_rel, pr2=1)
@@ -75,7 +76,7 @@ def orc_settings(network, T_amb, p_amb, delta_t_min):
     return network
 
 
-def hp_settings_throttle(network, T_amb, p_amb, delta_t_min, m7):
+def hp_settings_throttle(network, m7):
 
     # pressure drops and isentropic efficiencies
     network.get_comp('evaporator hp').set_attr(pr1=1, pr2=1)
@@ -99,7 +100,7 @@ def hp_settings_throttle(network, T_amb, p_amb, delta_t_min, m7):
     return network
 
 
-def hp_settings_ideal(network, T_amb, p_amb, delta_t_min, Q_cond, h1):
+def hp_settings_ideal(network, Q_cond, h1):
 
     # no pressure drops in the condenser and isentropic efficiency of compressor is real
     network.get_comp('condenser hp').set_attr(pr=1, Q=Q_cond)
@@ -114,7 +115,7 @@ def hp_settings_ideal(network, T_amb, p_amb, delta_t_min, Q_cond, h1):
     return network
 
 
-def hp_settings_open(network, T_amb, delta_t_min, Q_cond, h1, COND=None, EVA=None, COMP=None):
+def hp_settings_open(network, Q_cond, h1, COND=None, EVA=None, COMP=None):
 
     # no pressure drops in the condenser and isentropic efficiency of compressor is real
     network.get_comp('condenser hp').set_attr(pr=1 if COND is None else p_loss_rel, Q=Q_cond)
