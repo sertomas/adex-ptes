@@ -5,7 +5,7 @@ from cb_qt_diagram import qt_sens_latent
 from cb_set_pressure import set_pressure
 from cb_exergy import exerg_an_hp, exerg_an_orc
 
-from config import delta_t_min, T_amb, p_amb, P_in
+from config import delta_t_min, T_amb, p_amb, P_in, P_out
 
 # TODO CODE:
 #  - Give the results as variables/arrays and not from CSV files (function / global variables?)
@@ -26,7 +26,7 @@ orc = orc_network(['R245fa', 'water'])
 
 # 2) set the parameters, the initial values and the design variables
 # as well as the ambient conditions and the minimum temperature difference
-hp_settings(hp, P_in)
+hp_settings(hp)
 orc_settings(orc)
 
 # 3) solve the problem and store the results in .csv files

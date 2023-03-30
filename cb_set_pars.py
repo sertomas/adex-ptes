@@ -2,7 +2,7 @@
 # "orc_settings" sets the initial values, parameters and design variables of the ORC
 # "hp_settings_234" sets the initial values, parameters and design variables of the open heat pump with states 2-3-4
 
-from config import delta_t_min, T_amb, p_amb, P_in
+from config import delta_t_min, T_amb, p_amb, P_in, P_out
 
 # --- OVERALL ------------------------------------------------------------
 
@@ -21,14 +21,13 @@ eta_s_compressor = 0.85  # isentropic efficiency of compressor
 
 
 # --- ORC ------------------------------------------------------------------
-outlet_power = 0.4e6  # power from turbine [W]
 p_low_orc = 1.2  # inlet pressure of pump [bar]
 p_high_orc = 7  # outlet pressure of evaporator [bar]
 eta_s_pump = 0.85  # isentropic efficiency of pump
 eta_s_turbine = 0.85  # isentropic efficiency of turbine
 
 
-def hp_settings(network, P):
+def hp_settings(network, P=None):
 
     # pressure drops and isentropic efficiencies
     network.get_comp('evaporator hp').set_attr(pr1=p_loss_rel, pr2=p_loss_rel)
@@ -36,7 +35,10 @@ def hp_settings(network, P):
     network.get_comp('compressor').set_attr(eta_s=eta_s_compressor)
 
     # heat pump cycle
-    network.get_comp('compressor').set_attr(P=P_in)
+    if P is None:
+        network.get_comp('compressor').set_attr(P=P_in)
+    else:
+        network.get_comp('compressor').set_attr(P=P)
     network.get_conn('2').set_attr(T=T_amb-delta_t_min, p=p_low_hp, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
     network.get_conn('4').set_attr(p=p_high_hp)
     network.get_comp('condenser hp').set_attr(ttd_l=5)
@@ -52,7 +54,7 @@ def hp_settings(network, P):
     return network
 
 
-def orc_settings(network):
+def orc_settings(network, P=None):
 
     # pressure drops and isentropic efficiencies
     network.get_comp('evaporator orc').set_attr(pr1=p_loss_rel, pr2=1)
@@ -61,7 +63,10 @@ def orc_settings(network):
     network.get_comp('steam turbine').set_attr(eta_s=eta_s_turbine)
 
     # ORC
-    network.get_comp('steam turbine').set_attr(P=-outlet_power)
+    if P is None:
+        network.get_comp('steam turbine').set_attr(P=-P_out)
+    else:
+        network.get_comp('steam turbine').set_attr(P=-P)
     network.get_conn('12').set_attr(p=p_low_orc, x=0, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
     network.get_conn('14').set_attr(T=120, p=p_high_orc)
 
