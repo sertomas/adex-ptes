@@ -2,13 +2,13 @@ from cb_set_pars import hp_settings, orc_settings
 from config import V, P_out, P_in, P_min, rho
 
 
-def time_analysis_TES(df, hp, orc, V_t, V_in_t, V_out_t):
+def time_analysis_TES(df, hp, orc, V_t, V_in, V_out):
 
     for t in df.index:
         P = df.loc[t, "Residual for CB"] * 1e6
 
         # check if SOC is high enough for discharging
-        if V_t > V_out_t:
+        if V_t > V_out:
             if P > P_min:
                 if P < P_out:
                     P_orc = P
@@ -20,7 +20,7 @@ def time_analysis_TES(df, hp, orc, V_t, V_in_t, V_out_t):
                 V_t -= df.loc[t, "Discharging volume"]
 
         # check if SOC is low enough for charging
-        if V_t < V - V_in_t:
+        if V_t < V - V_in:
             if P < - P_min:
                 if P < P_in:
                     P_hp = P

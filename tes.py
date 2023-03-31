@@ -4,6 +4,7 @@ from cb_set_pars import hp_settings, orc_settings
 from cb_network import hp_network, orc_network
 from tes_func import time_analysis_TES
 from config import V, P_out, P_in, P_min, rho
+from tes_plot import tes_plot_init, tes_plot_period
 
 
 hp = hp_network(['R245fa', 'water'])
@@ -15,180 +16,54 @@ hp_s = hp.results['Connection']
 orc.solve(mode='design')
 orc_s = orc.results['Connection']
 
-V_in_t = hp_s.loc["7", "m"] / rho * 3600  # [m^3/h] charging volume stream
-V_out_t = orc_s.loc["17", "m"] / rho * 3600  # [m^3/h] discharging volume stream
-t_charge = V / V_in_t  # [h] charging time
-t_discharge = V / V_out_t  # [h] discharging time
+# read design dimensions from simulation, if you want to change the size of the CB, change vars in "config.py" and rerun
+V_in = hp_s.loc["7", "m"] / rho * 3600  # [m^3/h] charging volume stream
+V_out = orc_s.loc["17", "m"] / rho * 3600  # [m^3/h] discharging volume stream
+t_charge = V / V_in  # [h] charging time
+t_discharge = V / V_out  # [h] discharging time
 
-plt.rcParams.update({'font.size': 14})
-
+# read data for power generation, load demand and temperature
 df_2022 = pd.read_csv("wind_pv_entose_DE_2022.csv", index_col=0, parse_dates=[0])  # [MW]
 df_2022 = df_2022 / 1e3  # [GW]
 df_2022["RES"] = df_2022["Wind Offshore"] + df_2022["Wind Onshore"] + df_2022["Solar"]
 df_2022["Residual"] = df_2022["Last"] - df_2022["RES"]
-df_2022["RES new"] = df_2022["RES"] * 2  # assumption: wind and pv capacity doubled
+df_2022["RES new"] = df_2022["RES"] / df_2022["RES"].sum() * df_2022["Last"].sum()  # assumption: wind and pv capacity cover the whole demand
 df_2022["Residual new"] = df_2022["Last"] - df_2022["RES new"]
 df_2022["Residual for CB"] = df_2022["Residual new"] / df_2022["Residual new"].max() * P_in / 1e6  # [MW]
 
-fig1 = plt.figure(figsize=(14, 7))
-ax1 = fig1.add_subplot(1, 1, 1)
-ax1.plot(df_2022["RES"].resample("D").mean(), color="green")
-ax1.plot(df_2022["Residual"].resample("D").mean(), color="black")
-ax1.set_xlabel('Time')
-ax1.grid(True)
-ax1.set_ylabel('Power [GW]')
-ax1.legend(["RES", "Load"])
-ax1.set_ylim(0, 100)
-ax1.set_title("Residual load and power generation from RES in Germany (daily mean, 2022)", fontsize=16, pad=20)
-plt.show()
+dwd_2022 = pd.read_csv("stundenwerte_TU_03987_akt/produkt_tu_stunde_20210926_20230329_03987.txt", delimiter=';')
+dwd_2022['MESS_DATUM'] = pd.to_datetime(dwd_2022['MESS_DATUM'], format='%Y%m%d%H')  # convert MESS_DATUM to datetime format
+dwd_2022.set_index('MESS_DATUM', inplace=True)  # set MESS_DATUM as the time index
+temp_2022 = dwd_2022.loc["2022-01-01":"2022-12-31", "TT_TU"]
 
-fig2 = plt.figure(figsize=(14, 7))
-ax1 = fig2.add_subplot(1, 1, 1)
-ax1.plot(df_2022["RES new"].resample("D").mean(), color="green")
-ax1.plot(df_2022["Residual"].resample("D").mean(), color="black")
-ax1.set_xlabel('Time')
-ax1.grid(True)
-ax1.set_ylabel('Power [GW]')
-ax1.legend(["RES", "Load"])
-ax1.set_ylim(0, 100)
-ax1.set_title("Residual load and power generation from RES in Germany (daily mean, future scenario)", fontsize=16, pad=20)
-plt.show()
-
-fig3 = plt.figure(figsize=(14, 7))
-ax1 = fig3.add_subplot(1, 1, 1)
-ax1.plot(df_2022["Residual for CB"].resample("H").mean(), color="black")
-ax1.axhline(y=0, linestyle='--', color="grey")
-ax1.set_xlabel('Time')
-ax1.grid(True)
-ax1.set_ylabel('Power [MW]')
-ax1.set_ylim(-2, 2)
-ax1.set_title("Example of demand curve for a CB (hourly)", fontsize=16, pad=20)
-plt.show()
-
-summer_week = df_2022.loc["2022-07-01":"2022-07-07"]
-
-fig4 = plt.figure(figsize=(14, 7))
-ax1 = fig4.add_subplot(1, 2, 1)
-ax1.plot(summer_week["Residual for CB"].resample("H").mean(), color="black")
-ax1.axhline(y=0, linestyle='--', color="grey")
-ax1.set_xlabel('Time')
-plt.tight_layout(pad=6.0)
-plt.xticks(rotation=90)
-ax1.grid(True)
-ax1.set_ylabel('Power [MW]')
-ax1.set_ylim(-2, 2)
-ax1.set_title("Demand curve for CB (hourly, summer week)", fontsize=16, pad=20)
-
-winter_week = df_2022.loc["2022-01-01":"2022-01-07"]
-
-ax2 = fig4.add_subplot(1, 2, 2)
-ax2.plot(winter_week["Residual for CB"].resample("H").mean(), color="black")
-ax2.axhline(y=0, linestyle='--', color="grey")
-ax2.set_xlabel('Time')
-plt.xticks(rotation=90)
-ax2.grid(True)
-ax2.set_ylabel('Power [MW]')
-ax2.set_ylim(-2, 2)
-ax2.set_title("Demand curve for CB (hourly, winter week)", fontsize=16, pad=20)
-plt.show()
-
+tes_plot_init(df_2022, temp_2022)
 
 # Dispatch in the summer
 begin_period = "2022-07-01"
-end_period = "2022-07-21"
+end_period = "2022-08-31"
 df_period = df_2022[begin_period:end_period].resample("H").mean()
 
-V_t = V  # at the beginning fully charged
-df_period = time_analysis_TES(df_period, hp, orc, V_t, V_in_t, V_out_t)
-df_period["SOC"] = V - (df_period["Discharging volume"] - df_period["Charging volume"]).cumsum()
+V_t = V / 2  # at the beginning half charged
+df_period = time_analysis_TES(df_period, hp, orc, V_t, V_in, V_out)
+df_period["SOC"] = V_t - (df_period["Discharging volume"] - df_period["Charging volume"]).cumsum()
 
-fig5 = plt.figure(figsize=(14, 7))
-ax1 = fig5.add_subplot(1, 2, 1)
-ax1.fill_between(df_period.index, -df_period["Charging volume"], 0, color="blue")
-ax1.fill_between(df_period.index, 0, df_period["Discharging volume"], color="red")
-ax1.axhline(y=0, linestyle='--', color="grey")
-ax1.set_xlabel('Time')
-plt.tight_layout(pad=6.0)
-plt.xticks(rotation=90)
-plt.legend(["Charging", "Discharging"], loc='lower right')
-ax1.grid(True)
-ax1.set_ylabel('Volume flow [m3/h]')
-ax1.set_ylim(-60, 60)
-ax1.set_title("Charging and discharging of the CB", fontsize=16, pad=20)
-
-ax2 = fig5.add_subplot(1, 2, 2)
-ax2.plot(df_2022.loc[begin_period:end_period, "Residual for CB"].resample("H").mean(), color="black")
-ax2.axhline(y=0, linestyle='--', color="grey")
-ax2.set_xlabel('Time')
-plt.tight_layout(pad=6.0)
-plt.xticks(rotation=90)
-ax2.grid(True)
-ax2.set_ylabel('Power [MW]')
-ax2.set_ylim(-2, 2)
-ax2.set_title("Demand curve (positive deficit, negative surplus)", fontsize=16, pad=20)
-plt.show()
-
-fig6 = plt.figure(figsize=(14, 7))
-ax1 = fig6.add_subplot(1, 1, 1)
-ax1.fill_between(df_period.index, df_period["SOC"], 0, color="green")
-ax1.set_xlabel('Time')
-plt.tight_layout(pad=6.0)
-plt.xticks(rotation=90)
-ax1.grid(True)
-ax1.set_ylabel('SOC [m3]')
-ax1.set_title("State of charge of the TES", fontsize=16, pad=20)
-plt.show()
-
+tes_plot_period(df_2022, df_period, begin_period, end_period)
 
 # Dispatch in the winter
 begin_period = "2022-01-01"
-end_period = "2022-01-21"
+end_period = "2022-02-28"
 df_period = df_2022[begin_period:end_period].resample("H").mean()
 
-V_t = V  # at the beginning fully charged
-df_period = time_analysis_TES(df_period, hp, orc, V_t, V_in_t, V_out_t)
-df_period["SOC"] = V - (df_period["Discharging volume"] - df_period["Charging volume"]).cumsum()
+V_t = V / 2  # at the beginning half charged
+df_period = time_analysis_TES(df_period, hp, orc, V_t, V_in, V_out)
+df_period["SOC"] = V_t - (df_period["Discharging volume"] - df_period["Charging volume"]).cumsum()
 
-fig7 = plt.figure(figsize=(14, 7))
-ax1 = fig7.add_subplot(1, 2, 1)
-ax1.fill_between(df_period.index, -df_period["Charging volume"], 0, color="blue")
-ax1.fill_between(df_period.index, 0, df_period["Discharging volume"], color="red")
-ax1.axhline(y=0, linestyle='--', color="grey")
-ax1.set_xlabel('Time')
-plt.tight_layout(pad=6.0)
-plt.xticks(rotation=90)
-plt.legend(["Charging", "Discharging"], loc='lower right')
-ax1.grid(True)
-ax1.set_ylabel('Volume flow [m3/h]')
-ax1.set_ylim(-60, 60)
-ax1.set_title("Charging and discharging of the CB", fontsize=16, pad=20)
-
-ax2 = fig7.add_subplot(1, 2, 2)
-ax2.plot(df_2022.loc[begin_period:end_period, "Residual for CB"].resample("H").mean(), color="black")
-ax2.axhline(y=0, linestyle='--', color="grey")
-ax2.set_xlabel('Time')
-plt.tight_layout(pad=6.0)
-plt.xticks(rotation=90)
-ax2.grid(True)
-ax2.set_ylabel('Power [MW]')
-ax2.set_ylim(-2, 2)
-ax2.set_title("Demand curve (positive deficit, negative surplus)", fontsize=16, pad=20)
-plt.show()
-
-fig8 = plt.figure(figsize=(14, 7))
-ax1 = fig8.add_subplot(1, 1, 1)
-ax1.fill_between(df_period.index, df_period["SOC"], 0, color="green")
-ax1.set_xlabel('Time')
-plt.tight_layout(pad=6.0)
-plt.xticks(rotation=90)
-ax1.grid(True)
-ax1.set_ylabel('SOC [m3]')
-ax1.set_title("State of charge of the TES", fontsize=16, pad=20)
-plt.show()
+tes_plot_period(df_2022, df_period, begin_period, end_period)
 
 # TODO:
-#  interesting to see for how many hours the CB operates in charging and discharging mode
-#  thermal losses?
-#  time series over the year? (one month takes less than one minute)
-#  change temperature of the ambient?
-#  analyze COP and round-trip efficiency
+#  1) adapt/optimize the ORC and HP low pressure to the ambient temperature over time period
+#     ==> time/temperature sensitive COP
+#     one month around 10 seconds run time with hourly time step
+#  2) calculate how many hours CB operates in charging and discharging mode
+#  3) analyze COP and round-trip efficiency
+#  4) consider thermal losses?
