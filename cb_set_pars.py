@@ -2,7 +2,8 @@
 # "orc_settings" sets the initial values, parameters and design variables of the ORC
 # "hp_settings_234" sets the initial values, parameters and design variables of the open heat pump with states 2-3-4
 
-from config import delta_t_min, T_amb, p_amb, P_in, P_out
+from CoolProp.CoolProp import PropsSI as PSI
+from config import delta_t_min, T_amb, p_amb, P_in, P_out, fluids
 
 # --- OVERALL ------------------------------------------------------------
 
@@ -15,14 +16,15 @@ T_high_TES = 130  # high temperature of the water in the TES [°C]
 
 
 # --- HEAT PUMP ------------------------------------------------------------
-p_low_hp = 0.45  # inlet pressure of compressor [bar]
+p_low_hp = PSI("P", "Q", 0, 'T', T_amb - delta_t_min*2 + 273.15, fluids[0]) * 0.9 / 1e5  # [bar]
 p_high_hp = 25.5  # outlet pressure of condenser [bar]
 eta_s_compressor = 0.85  # isentropic efficiency of compressor
 
 
 # --- ORC ------------------------------------------------------------------
-p_low_orc = 1.2  # inlet pressure of pump [bar]
-p_high_orc = 7  # outlet pressure of evaporator [bar]
+p_low_orc = PSI("P", "Q", 0, 'T', T_amb + delta_t_min*2 + 273.15, fluids[0]) / 1e5  # [bar]
+# temperature can be decreased to T_amb + delta_t_min but minimum temperature difference in condenser may be not respected
+p_high_orc = 8  # outlet pressure of evaporator [bar]
 eta_s_pump = 0.85  # isentropic efficiency of pump
 eta_s_turbine = 0.85  # isentropic efficiency of turbine
 
@@ -45,7 +47,7 @@ def hp_settings(network, P=None):
 
     # ambient water
     network.get_conn('5').set_attr(T=T_amb, p=p_amb, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
-    network.get_conn('6').set_attr(T=5)
+    network.get_conn('6').set_attr(T=T_amb-delta_t_min)
 
     # TES charging water
     network.get_conn('7').set_attr(T=T_low_TES, p=3, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
@@ -68,11 +70,11 @@ def orc_settings(network, P=None):
     else:
         network.get_comp('steam turbine').set_attr(P=-P)
     network.get_conn('12').set_attr(p=p_low_orc, x=0, fluid={network.fluids[0]: 1, network.fluids[1]: 0})
-    network.get_conn('14').set_attr(T=120, p=p_high_orc)
+    network.get_conn('14').set_attr(T=T_high_TES-delta_t_min, p=p_high_orc)
 
     # ambient water
     network.get_conn('15').set_attr(T=T_amb, p=p_amb, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
-    network.get_conn('16').set_attr(T=15)
+    network.get_conn('16').set_attr(T=T_amb+delta_t_min)
 
     # TES discharging water
     network.get_conn('17').set_attr(T=T_high_TES, p=3, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
@@ -96,7 +98,7 @@ def hp_settings_throttle(network, m7):
 
     # ambient water
     network.get_conn('5').set_attr(T=T_amb, p=p_amb, fluid={network.fluids[0]: 0, network.fluids[1]: 1})
-    network.get_conn('6').set_attr(T=5)
+    network.get_conn('6').set_attr(T=T_amb-delta_t_min)
 
     # TES charging water
     network.get_conn('7').set_attr(T=T_low_TES, p=3, m=m7, fluid={network.fluids[0]: 0, network.fluids[1]: 1})

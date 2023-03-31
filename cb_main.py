@@ -5,7 +5,7 @@ from cb_qt_diagram import qt_sens_latent
 from cb_set_pressure import set_pressure
 from cb_exergy import exerg_an_hp, exerg_an_orc
 
-from config import delta_t_min, T_amb, p_amb, P_in, P_out
+from config import delta_t_min, T_amb, p_amb, P_in, P_out, fluids
 
 # TODO CODE:
 #  - Give the results as variables/arrays and not from CSV files (function / global variables?)
@@ -21,8 +21,8 @@ from config import delta_t_min, T_amb, p_amb, P_in, P_out
 
 
 # 1) set the networks
-hp = hp_network(['R245fa', 'water'])
-orc = orc_network(['R245fa', 'water'])
+hp = hp_network(fluids)
+orc = orc_network(fluids)
 
 # 2) set the parameters, the initial values and the design variables
 # as well as the ambient conditions and the minimum temperature difference
@@ -38,10 +38,10 @@ orc.results['Connection'].round(5).to_csv("orc_results.csv")
 
 # 4a) check QT-diagrams and correct the pressures
 delta_t_he = [
-    qt_sens_latent(hp.get_conn('5'), hp.get_conn('6'), hp.get_conn('2'), hp.get_conn('1'), delta_t_min, False),
-    qt_sens_latent(hp.get_conn('8'), hp.get_conn('7'), hp.get_conn('3'), hp.get_conn('4'), delta_t_min, False),
-    qt_sens_latent(orc.get_conn('17'), orc.get_conn('18'), orc.get_conn('14'), orc.get_conn('13'), delta_t_min, False),
-    qt_sens_latent(orc.get_conn('16'), orc.get_conn('15'), orc.get_conn('11'), orc.get_conn('12'), delta_t_min, False)
+    qt_sens_latent(hp.get_conn('5'), hp.get_conn('6'), hp.get_conn('2'), hp.get_conn('1'), delta_t_min, True),
+    qt_sens_latent(hp.get_conn('8'), hp.get_conn('7'), hp.get_conn('3'), hp.get_conn('4'), delta_t_min, True),
+    qt_sens_latent(orc.get_conn('17'), orc.get_conn('18'), orc.get_conn('14'), orc.get_conn('13'), delta_t_min, True),
+    qt_sens_latent(orc.get_conn('16'), orc.get_conn('15'), orc.get_conn('11'), orc.get_conn('12'), delta_t_min, True)
     ]
 
 # in case one or more heat exchangers have too small temperature difference,
