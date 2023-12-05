@@ -1,0 +1,65 @@
+{
+    "setup": {
+        "name": "simple cycle",
+        "type": "HeatPumpSimple",
+        "refrig": "REFPROP::R1336MZZZ"
+    },
+    "fluids": {
+        "working_fluid": "REFPROP::R1336MZZZ",
+        "fluid_TES": "REFPROP::water",
+        "fluid_ambient": "REFPROP::air"
+    },
+    "ambient": {
+        "p": 1.013,
+        "T_in": 10,
+        "T_out": 7
+    },
+    "dimension_parameters": {
+        "m_21": 10,
+        "m_31": 7,
+        "Q_cond": -1e6,
+        "P_comp": 1e6
+  },
+    "cond": {
+        "pr1": 0.95,
+        "pr2": 1,
+        "ttd_l": 5
+    },
+    "eva": {
+        "pr1": 1,
+        "pr2": 0.95,
+        "ttd_l": 5
+    },
+    "comp": {
+        "eta_s": 0.85
+    },
+    "ihx": {
+        "pr1": 0.985,
+        "pr2": 0.985,
+        "ttd_u": 5
+    },
+    "c32": {
+        "p": 12.5,
+        "T_start": 75
+    },
+    "c35": {
+        "p_start": 0.3,
+        "T_start": 5,
+        "Td_bp": 0.000001
+    },
+    "c36": {
+        "T_start": 70
+    },
+    "logph": {
+        "x_min": 150,
+        "x_max": 650,
+        "y_min": 0.1,
+        "y_max": 100.0
+    },
+      "Ts": {
+        "x_min": 1000,
+        "x_max": 2000,
+        "y_min": -30,
+        "y_max": 170
+    }
+}

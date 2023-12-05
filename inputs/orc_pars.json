@@ -1,0 +1,66 @@
+{
+    "setup": {
+        "name": "simple cycle",
+        "type": "OrcIhx",
+        "refrig": "REFPROP::R134a"
+    },
+    "fluids": {
+        "working_fluid": "REFPROP::R134a",
+        "fluid_TES": "REFPROP::water",
+        "fluid_ambient": "REFPROP::air"
+    },
+    "ambient": {
+        "p": 1.013,
+        "T_in": 10,
+        "T_out": 13
+    },
+    "dimension_parameters": {
+        "m_51": 10,
+        "m_61": 7,
+        "Q_eva": 1e6,
+        "P_exp": -1e6
+  },
+    "cond": {
+        "pr1": 0.95,
+        "pr2": 1,
+        "ttd_l": 6.5
+    },
+    "eva": {
+        "pr1": 1,
+        "pr2": 0.95,
+        "ttd_u": 9
+    },
+    "exp": {
+        "eta_s": 0.9
+    },
+    "pump": {
+        "eta_s": 0.85
+    },
+    "ihx": {
+        "pr1": 0.985,
+        "pr2": 0.985,
+        "ttd_l": 5
+    },
+    "c61": {
+        "p_start": 5.1,
+        "T_start": 16,
+        "Td_bp": -0.001
+    },
+    "c62": {
+        "p": 50
+    },
+    "c64": {
+        "p_start": 50,
+        "T_start": 125
+    },
+    "c66": {
+        "p_start": 4,
+        "T_start": 17
+    },
+    "logph": {
+        "x_min": 100,
+        "x_max": 550,
+        "y_min": 0.5,
+        "y_max": 200.0
+    }
+}

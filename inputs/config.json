@@ -1,0 +1,26 @@
+{
+  "ambient": {
+      "p": 1.013,
+      "T": 10,
+      "T_out_real": 5,
+      "T_out_hp": 9.99,
+      "T_out_orc": 10.01
+    },
+
+  "tech_specs": {
+    "delta_T_min": 5
+  },
+
+  "dimension_parameters": {
+    "P_in": 1.5e6,
+    "P_out": 0.4e6
+  },
+
+  "TES": {
+    "T_high": 140,
+    "T_low": 70,
+    "p": 5,
+    "V": 1000,
+    "rho": 1000
+  }
+}
