@@ -105,6 +105,60 @@ def run_orc(config, orc_pars, case, Tdeltah=False, logph=False, show=False):
     return orc
 
 
+def sens_an_p32_TESPy(hp_base, p_start, p_end, p_step, min_temp_allowed):
+    """
+    Perform sensitivity analysis on TESPy model for pressure at condenser outlet (c32).
+
+    Parameters:
+    - hp_base (TESPy.networks.network.Network): TESPy network model.
+    - p_start (float): Starting pressure for sensitivity analysis.
+    - p_end (float): Ending pressure for sensitivity analysis.
+    - p_step (float): Pressure step size for sensitivity analysis.
+    - min_temp_allowed (float): Minimum allowed temperature difference in Kelvin.
+
+    Returns:
+    - float or None: The pressure at which the minimum temperature difference first becomes equal to or less
+      than the specified 'min_temp_allowed'. Returns None if no such pressure is found within the specified range.
+
+    This function sets the pressure at the condenser outlet (c32) in the TESPy model to different values within
+    the specified range and solves the network. It then calculates the minimum temperature difference and
+    breaks the loop if the condition is met. The result is printed, and the dataframe with results is saved to a CSV file.
+
+    Example:
+    ```
+    target_pressure = sens_an_p32_TESPy(my_hp_base, 11.0, 14.0, 0.25, 5)
+    ```
+    """
+    min_temp_diff = pd.DataFrame()
+
+    target_pressure = None  # Initialize the variable to store the target pressure p32
+
+    for pressure in np.arange(p_start, p_end + p_step, p_step):
+        hp_base.conns['c32'].set_attr(p=pressure)
+        hp_base.network.solve('design')
+
+        [min_td, max_td] = hp_base.qt_diagram(31, 32, 21, 22, min_temp_allowed,
+                                              case=f'p={pressure}',
+                                              path=f'outputs/sens_an_hp_p32/hp_qt_condenser_p_{pressure}.png')
+
+        min_temp_diff.loc[pressure, 'Min. temperature difference [K]'] = min_td
+
+        # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
+        if min_td >= min_temp_allowed:
+            target_pressure = pressure
+            break  # Exit the loop if the condition is met
+
+    # Check if the condition is met
+    if target_pressure is not None:
+        print(f"The pressure at which the minimum temperature difference first becomes equal to {min_temp_allowed} K is: {target_pressure} bar.")
+    else:
+        print(f"No pressure found within the specified range.")
+
+    min_temp_diff.round(3).to_csv('outputs/sens_an_hp_p32/results.csv')
+
+    return target_pressure
+
+
 # --- 4. FUNCTIONS FOR SIMULATION AND ANALYSIS -------------------------------------------------------------------------
 
 def init_hp(hp_base):
@@ -440,11 +494,42 @@ def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
         # Initialize hp_base with the current combination of component IDs
         df_conns_set = init_hp(hp_base)
 
-        # Set the hp_base connections with the specified parameters
-        df_conns = set_hp(df_conns_set, p32, **comp_ids)
-
         # get the case as a string
         case = '_'.join([comp for comp, comp_id in comp_ids.items() if not comp_id])
+
+        if case == '':
+            case = 'ideal'
+
+        min_temp_diff = pd.DataFrame()
+        target_pressure = None
+
+        if combo[1] == True:
+            delt_t_min = 0
+        else:
+            delt_t_min = hp_pars_base['cond']['ttd_l']
+
+        for p32 in np.arange(10, 15 + 0.25, 0.25):
+            set_hp(df_conns_set, p32, **comp_ids)
+
+            [min_td, max_td] = qt_diagram(df_conns_set, 'COND', 31, 32, 21, 22, delt_t_min, 'HP', f'{case}, p={p32}')
+
+            min_temp_diff.loc[p32, 'Min. temperature difference [K]'] = min_td
+
+            # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
+            if min_td >= 0:
+                target_pressure = p32
+                break  # Exit the loop if the condition is met
+
+        if target_pressure is not None:
+            print(
+                f"The pressure at which the minimum temperature difference first becomes equal to {delt_t_min} K is: {target_pressure} bar.")
+        else:
+            print(f"No pressure found within the specified range.")
+
+        min_temp_diff.round(3).to_csv('outputs/sens_an_hp_p32/results.csv')
+
+        # Set the hp_base connections with the specified parameters
+        df_conns = set_hp(df_conns_set, target_pressure, **comp_ids)
 
         # Check the mass and energy balance
         df_comps = check_balance_hp(df_conns, case)
