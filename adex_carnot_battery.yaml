@@ -1,0 +1,49 @@
+name: adex
+channels:
+- conda-forge
+dependencies:
+- python==3.9
+- pip
+
+  # main packages
+- numpy<1.24
+- scipy
+- pandas
+- xarray
+- networkx
+- yaml
+- pyomo
+- netcdf4
+
+  # interactive python
+- ipython
+- jupyterlab
+
+  # reading excel tables
+- tabula-py
+- xlrd
+- lxml
+- pytables
+- pyxlsb
+- openpyxl
+
+  # plotting
+- matplotlib<=3.5.2
+
+#- seaborn
+- plotly
+- hvplot
+- holoviews
+- geoviews
+- graphviz
+
+  # solvers
+- coincbc
+- glpk
+
+  # publishing
+- jupyter-book
+- ghp-import
+
+ # thermal energy system
+- tespy==0.7.0
