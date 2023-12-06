@@ -162,6 +162,16 @@ def sens_an_p32_TESPy(hp_base, p_start, p_end, p_step, min_temp_allowed):
 # --- 4. FUNCTIONS FOR SIMULATION AND ANALYSIS -------------------------------------------------------------------------
 
 def init_hp(hp_base):
+    """
+    Initialize a DataFrame containing information about the states and connections in a heat pump system.
+
+    Parameters:
+    - hp_base (HeatPumpIhx): An instance of the HeatPumpIhx class containing information about the heat pump system.
+
+    Returns:
+    pandas.DataFrame: A DataFrame with columns representing different properties (e.g., mass flow rate, temperature, pressure) and rows representing different state points in the heat pump system.
+    """
+
     index = [31, 32, 33, 34, 35, 36, 21, 22, 11, 12]
     columns = ["m [kg/s]", "T [°C]", "p [bar]", "h [kJ/kg]", "s [J/kgK]", "e^PH [kJ/kg]", "x [-]", "fluid"]
     df_conns = pd.DataFrame(index=index, columns=columns)
@@ -198,6 +208,16 @@ def init_hp(hp_base):
 
 
 def init_orc(orc_base):
+    """
+    Initialize a DataFrame containing information about the states and connections in a ORC system.
+
+    Parameters:
+    - orc_base (OrcIhx): An instance of the OrcIhx class containing information about the heat pump system.
+
+    Returns:
+    pandas.DataFrame: A DataFrame with columns representing different properties (e.g., mass flow rate, temperature, pressure) and rows representing different state points in the ORC system.
+    """
+
     index = [61, 62, 63, 64, 65, 66, 51, 52, 41, 42]
     columns = ["m [kg/s]", "T [°C]", "p [bar]", "h [kJ/kg]", "s [J/kgK]", "e^PH [kJ/kg]", "x [-]", "fluid"]
     df_conns = pd.DataFrame(index=index, columns=columns)
@@ -234,7 +254,22 @@ def init_orc(orc_base):
     return df_conns
 
 
-def set_hp(df, p32, COMP=False, COND=False, VAL=False, EVA=False, IHX=False):
+def solve_hp(df, p32, COMP=False, COND=False, VAL=False, EVA=False, IHX=False):
+    """
+    Solve the system of equations of a heat pump system based on specified conditions.
+
+    Parameters:
+    - df (pandas.DataFrame): Input DataFrame containing initial information about the connections.
+    - p32 (float): Pressure at state 32 in bar.
+    - COMP (bool): Flag indicating whether to consider compressor operation (default is False).
+    - COND (bool): Flag indicating whether to consider condenser operation (default is False).
+    - VAL (bool): Flag indicating whether to consider valve operation (default is False).
+    - EVA (bool): Flag indicating whether to consider evaporator operation (default is False).
+    - IHX (bool): Flag indicating whether to consider the operation of the internal heat exchanger (default is False).
+
+    Returns:
+    pandas.DataFrame: DataFrame containing updated information about the connections after solving the system of equations of the heat pump system.
+    """
 
     # states 12 and 35 are defined according to the operating conditions of EVA
     if EVA:
@@ -305,7 +340,23 @@ def set_hp(df, p32, COMP=False, COND=False, VAL=False, EVA=False, IHX=False):
     return df
 
 
-def set_orc(df, ttd_u_eva, ttd_l_cond, PUMP=False, COND=False, EXP=False, EVA=False, IHX=False):
+def solve_orc(df, ttd_u_eva, ttd_l_cond, PUMP=False, COND=False, EXP=False, EVA=False, IHX=False):
+    """
+    Solve the system of equations of an Organic Rankine Cycle (ORC) based on specified conditions.
+
+    Parameters:
+    - df (pandas.DataFrame): Input DataFrame containing initial information about the connections.
+    - ttd_u_eva (float): Upper terminal temperature difference in the evaporator.
+    - ttd_l_cond (float): Lower terminal temperature difference in the condenser.
+    - PUMP (bool): Flag indicating whether to consider pump operation (default is False).
+    - COND (bool): Flag indicating whether to consider condenser operation (default is False).
+    - EXP (bool): Flag indicating whether to consider expander (turbine) operation (default is False).
+    - EVA (bool): Flag indicating whether to consider evaporator operation (default is False).
+    - IHX (bool): Flag indicating whether to consider the operation of the internal heat exchanger (default is False).
+
+    Returns:
+    pandas.DataFrame: DataFrame containing updated  information about the connections after solving the system of equations of the Organic Rankine Cycle.
+    """
 
     # states 42 and 61 are defined according to the operating conditions of COND
     if COND:
@@ -387,6 +438,19 @@ def set_orc(df, ttd_u_eva, ttd_l_cond, PUMP=False, COND=False, EXP=False, EVA=Fa
 
 
 def check_balance_hp(df_conns, case):
+    """
+    Check the energy balance of a heat pump system based on the provided state information and calculate the exergy destruction flows.
+
+    Parameters:
+    - df_conns (pandas.DataFrame): DataFrame containing state information for the heat pump system connections.
+    - case (str): A string identifier for the specific case being evaluated.
+
+    Returns:
+    pandas.DataFrame: DataFrame containing the energy and exergy balance information for all the components of the heat pump system.
+
+    The function calculates the energy and exergy balance for different components (compressor, condenser, internal heat exchanger, valve, evaporator) and the overall heat pump system. It checks for any violations of the energy balance equation and prints a warning if detected. The resulting DataFrame provides a detailed breakdown of the energy balance for each component and the overall heat pump system.
+    """
+
     index = ['COMP', 'COND', 'IHX', 'VAL', 'EVA', 'SUM']
     columns = ['P [kW]', 'Q [kW]', 'S_gen [kW/K]', 'E_D [kW]']
     df_comps = pd.DataFrame(index=index, columns=columns, data=0)
@@ -416,6 +480,19 @@ def check_balance_hp(df_conns, case):
 
 
 def check_balance_orc(df_conns, case):
+    """
+    Check the energy balance of an Organic Rankine Cycle (ORC) based on the provided state information and calculate the exergy destruction flows.
+
+    Parameters:
+    - df_conns (pandas.DataFrame): DataFrame containing state information for the ORC system connections.
+    - case (str): A string identifier for the specific case being evaluated.
+
+    Returns:
+    pandas.DataFrame: DataFrame containing the energy balance information for al the components of the ORC system.
+
+    The function calculates the energy and exergy balance for different components (evaporator, expander, internal heat exchanger, condenser, pump) and the overall ORC system. It checks for any violations of the energy balance equation and prints a warning if detected. The resulting DataFrame provides a detailed breakdown of the energy balance for each component and the overall ORC system.
+    """
+
     index = ['EVA', 'EXP', 'IHX', 'COND', 'PUMP', 'SUM']
     columns = ['P [kW]', 'Q [kW]', 'S_gen [kW/K]', 'E_D [kW]']
     df_comps = pd.DataFrame(index=index, columns=columns, data=0)
@@ -444,7 +521,20 @@ def check_balance_orc(df_conns, case):
     return df_comps
 
 
-def exan_hp(df):
+def exergy_hp(df):
+    """
+    Calculate the specific exergy for each state in a heat pump system based on the provided state information.
+
+    Parameters:
+    - df (pandas.DataFrame): DataFrame containing state information for the heat pump system connections.
+
+    Returns:
+    pandas.DataFrame: DataFrame containing the updated state information with specific exergy values.
+
+    The function calculates the specific exergy for each state in the heat pump system based on the reference conditions
+    (h_0, s_0, T_0) for the working fluid, thermal energy storage (TES), and ambient conditions. The resulting DataFrame
+    includes the specific exergy values for each state.
+    """
 
     h_0_wf = h_0_fluids[df.loc[31, 'fluid']]
     s_0_wf = s_0_fluids[df.loc[31, 'fluid']]
@@ -463,7 +553,20 @@ def exan_hp(df):
     return df
 
 
-def exan_orc(df):
+def exergy_orc(df):
+    """
+    Calculate the specific exergy for each state in a ORC system based on the provided state information.
+
+    Parameters:
+    - df (pandas.DataFrame): DataFrame containing state information for the ORC system connections.
+
+    Returns:
+    pandas.DataFrame: DataFrame containing the updated state information with specific exergy values.
+
+    The function calculates the specific exergy for each state in the ORC system based on the reference conditions
+    (h_0, s_0, T_0) for the working fluid, thermal energy storage (TES), and ambient conditions. The resulting DataFrame
+    includes the specific exergy values for each state.
+    """
 
     h_0_wf = h_0_fluids[df.loc[61, 'fluid']]
     s_0_wf = s_0_fluids[df.loc[61, 'fluid']]
@@ -483,6 +586,20 @@ def exan_orc(df):
 
 
 def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
+    """
+    Perform an advanced exergetic analysis on a heat pump system for various combinations of components.
+
+    Parameters:
+    - hp_base (HeatPumpIhx): An instance of the HeatPumpIhx class representing the base configuration of the HP.
+    - p32 (float): Initial value for the pressure at state 32.
+    - components (list): List of component names to be considered in the analysis.
+    - check_temp_diff (bool): Flag to indicate whether to check temperature differences in the heat exchangers in the analysis.
+
+    The function performs an advanced exergetic analysis on the heat pump system for all possible combinations of the specified components. It iteratively adjusts the pressure at state 32 to meet the specified minimum temperature difference in the condenser. For each combination, the function solves the heat pump system, checks energy balances, and saves the results. Additionally, the function calculates the endogenous and exogenous exergy destruction rates and mass flow rates. The results are saved in CSV files for further analysis.
+
+    Returns:
+    None
+    """
 
     # Generate all possible combinations of component IDs
     combos = product([False, True], repeat=len(components))
@@ -509,7 +626,7 @@ def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
             delt_t_min = hp_pars_base['cond']['ttd_l']
 
         for p32 in np.arange(10, 15 + 0.25, 0.25):
-            set_hp(df_conns_set, p32, **comp_ids)
+            solve_hp(df_conns_set, p32, **comp_ids)
 
             [min_td, max_td] = qt_diagram(df_conns_set, 'COND', 31, 32, 21, 22, delt_t_min, 'HP', f'{case}, p={p32}')
 
@@ -529,14 +646,14 @@ def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
         min_temp_diff.round(3).to_csv('outputs/sens_an_hp_p32/results.csv')
 
         # Set the hp_base connections with the specified parameters
-        df_conns = set_hp(df_conns_set, target_pressure, **comp_ids)
+        df_conns = solve_hp(df_conns_set, target_pressure, **comp_ids)
 
         # Check the mass and energy balance
         df_comps = check_balance_hp(df_conns, case)
 
         # Save the results to CSV files
         df_comps.round(3).to_csv(f'outputs/adex_hp/adex_hp_{case}_comps.csv')
-        df_conns = exan_hp(df_conns)
+        df_conns = exergy_hp(df_conns)
         df_conns.round(3).to_csv(f'outputs/adex_hp/adex_hp_{case}_conns.csv')
 
         if check_temp_diff:
@@ -607,6 +724,21 @@ def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
 
 
 def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=False):
+    """
+    Perform an advanced exergetic analysis on a ORC system for various combinations of components.
+
+    Parameters:
+    - orc_base (OrcIhx): An instance of the OrcIhx class representing the base configuration of the ORC.
+    - ttd_u_eva (float): Upper terminal temperature difference in the evaporator.
+    - ttd_l_cond (float): Lower terminal temperature difference in the condenser.
+    - components (list): List of component names to be considered in the analysis.
+    - check_temp_diff (bool): Flag to indicate whether to check temperature differences in the heat exchangers in the analysis.
+
+    The function performs an advanced exergetic analysis on the ORC system for all possible combinations of the specified components. For each combination, the function solves the ORC system, checks energy balances, and saves the results. Additionally, the function calculates the endogenous and exogenous exergy destruction rates and mass flow rates. The results are saved in CSV files for further analysis.
+
+    Returns:
+    None
+    """
 
     # Generate all possible combinations of component IDs
     combos = product([False, True], repeat=len(components))
@@ -619,7 +751,7 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
         df_comp_cond_conns_set = init_orc(orc_base)
 
         # Set the hp_base connections with the specified parameters
-        df_comp_cond_conns = set_orc(df_comp_cond_conns_set, ttd_u_eva, ttd_l_cond, **comp_ids)
+        df_comp_cond_conns = solve_orc(df_comp_cond_conns_set, ttd_u_eva, ttd_l_cond, **comp_ids)
 
         # get the case as a string
         case = '_'.join([comp for comp, comp_id in comp_ids.items() if not comp_id])
@@ -629,7 +761,7 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
 
         # Save the results to CSV files
         df_comp_cond_comps.round(3).to_csv(f'outputs/adex_orc/adex_orc_{case}_comps.csv')
-        df_comp_cond_conns = exan_orc(df_comp_cond_conns)
+        df_comp_cond_conns = exergy_orc(df_comp_cond_conns)
         df_comp_cond_conns.round(3).to_csv(f'outputs/adex_orc/adex_orc_{case}_conns.csv')
 
         if check_temp_diff:

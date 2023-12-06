@@ -68,7 +68,7 @@ This is part of my research work at [Department of Energy Engineering and Enviro
      - The streams from and to the thermal energy storage are kept constant in each idealized system (product of the HP and fuel of the ORC) and are directly taken from the results of the TESPy simulation. 
      - The inlet ambient streams are also kept constant in each idealized system.
      - These functions are called every time the advanced exergy analysis of a (partially) idealized system is performed.
-   - In `set_hp()` and `set_orc()` the system of equation is solved step-by-step.
+   - In `solve_hp()` and `solve_orc()` the system of equation is solved step-by-step.
      - This is the crucial part of the advanced exergy analysis where the operating conditions (real/ideal) of each component is considered with the use of logic variables (e.g. `COMP==True` means the compressor operates ideally). 
      - In these functions part of the equations of the entire system are solved with component-specific functions (e.g. `valve()`). 
      - At the end of these functions, the DataFrame `df_conns` with the information about all the thermodynamic states is fully defined. 
@@ -78,7 +78,7 @@ This is part of my research work at [Department of Energy Engineering and Enviro
      - The power and heat flows are calculated and saved in the DataFrame `df_comps`.
      - The generated entropy as well as the exergy destruction are calculated and saved in the DataFrame `df_comps`.
      - These functions are called every time the advanced exergy analysis of a (partially) idealized system is performed.
-   - In `exan_hp()` and `exan_orc()` the exergy flows are calculated.
+   - In `exergy_hp()` and `exergy_orc()` the exergy flows are calculated.
      - Only the physical exergy is considered.
      - These functions are called every time the advanced exergy analysis of a (partially) idealized system is performed.
    - In `perf_adex_hp()` and `perf_adex_orc()` the entire advanced exergy analyses are carried out.

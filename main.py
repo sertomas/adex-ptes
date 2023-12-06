@@ -41,6 +41,6 @@ print("Conventional exergy analysis of the ORC base case: epsilon_real =", round
 
 
 # --- PERFORM ADVANCED EXERGY ANALYSIS ---------------------------------------------------------------------------------
-perf_adex_hp(hp_base, p32=13, components=['COMP', 'COND', 'IHX', 'VAL', 'EVA'], check_temp_diff=True)
-# perf_adex_orc(orc_base, ttd_u_eva=9, ttd_l_cond=6.5, components=['EVA', 'EXP', 'IHX', 'COND', 'PUMP'], check_temp_diff=True)
+# perf_adex_hp(hp_base, p32=13, components=['COMP', 'COND', 'IHX', 'VAL', 'EVA'], check_temp_diff=True)
+perf_adex_orc(orc_base, ttd_u_eva=9, ttd_l_cond=6.5, components=['EVA', 'EXP', 'IHX', 'COND', 'PUMP'], check_temp_diff=True)
 

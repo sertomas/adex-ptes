@@ -85,7 +85,7 @@ def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_m
     if min(difference) < delta_t_min - 1e-2:
         print(
             "The min. temperature difference of the " + component_name + f" of the {system} for the case {case} is " + str(
-                round(min(difference), 2)) + "K and is lower than the allowed min. (" + str(
+                round(min(difference), 2)) + "K and is lower than the allowed minimum (" + str(
                 delta_t_min) + "K).")
 
     return [min(difference), max(difference)]
