@@ -43,7 +43,7 @@ s_0_fluids = {
 }  # entropy at ambient conditions
 
 
-# --- 3. FUNCTIONS FOR THE MODELS --------------------------------------------------------------------------------------
+# --- 3. FUNCTIONS FOR THE MODELS AND SENSITIVITY ANALYSES -------------------------------------------------------------
 
 def run_hp(config, hp_pars, case, Tdeltah=False, logph=False, show=False):
     """
@@ -107,28 +107,36 @@ def run_orc(config, orc_pars, case, Tdeltah=False, logph=False, show=False):
 
 def sens_an_p32_TESPy(hp_base, p_start, p_end, p_step, min_temp_allowed):
     """
-    Perform sensitivity analysis on TESPy model for pressure at condenser outlet (c32).
+        Perform sensitivity analysis on TESPy model for the pressure at the condenser outlet (c32).
 
-    Parameters:
-    - hp_base (TESPy.networks.network.Network): TESPy network model.
-    - p_start (float): Starting pressure for sensitivity analysis.
-    - p_end (float): Ending pressure for sensitivity analysis.
-    - p_step (float): Pressure step size for sensitivity analysis.
-    - min_temp_allowed (float): Minimum allowed temperature difference in Kelvin.
+        Parameters:
+        - hp_base (TESPy.networks.network.Network): TESPy network model.
+        - p_start (float): Starting pressure for sensitivity analysis.
+        - p_end (float): Ending pressure for sensitivity analysis.
+        - p_step (float): Pressure step size for sensitivity analysis.
+        - min_temp_allowed (float): Minimum allowed temperature difference in Kelvin.
 
-    Returns:
-    - float or None: The pressure at which the minimum temperature difference first becomes equal to or less
-      than the specified 'min_temp_allowed'. Returns None if no such pressure is found within the specified range.
+        Returns:
+        - float or None: The pressure at which the minimum temperature difference first becomes equal to or less
+          than the specified 'min_temp_allowed'. Returns None if no such pressure is found within the specified range.
 
-    This function sets the pressure at the condenser outlet (c32) in the TESPy model to different values within
-    the specified range and solves the network. It then calculates the minimum temperature difference and
-    breaks the loop if the condition is met. The result is printed, and the dataframe with results is saved to a CSV file.
+        This function sets the pressure at the condenser outlet (c32) in the TESPy model to different values within
+        the specified range and solves the network. It then calculates the minimum temperature difference and
+        breaks the loop if the condition is met. The result is printed, and the dataframe with results is saved to a CSV file.
 
-    Example:
-    ```
-    target_pressure = sens_an_p32_TESPy(my_hp_base, 11.0, 14.0, 0.25, 5)
-    ```
-    """
+        Example:
+        ```
+        target_pressure = sens_an_p32_TESPy(my_hp_base, 11.0, 14.0, 0.25, 5)
+        ```
+
+        Notes:
+        - The sensitivity analysis is performed by varying the pressure at the condenser outlet (c32).
+        - The function checks the minimum temperature difference and stops when it first becomes equal to or less than
+          the specified 'min_temp_allowed'.
+        - The results, including the pressure and minimum temperature difference, are saved to a CSV file.
+
+        """
+
     min_temp_diff = pd.DataFrame()
 
     target_pressure = None  # Initialize the variable to store the target pressure p32
@@ -144,7 +152,7 @@ def sens_an_p32_TESPy(hp_base, p_start, p_end, p_step, min_temp_allowed):
         min_temp_diff.loc[pressure, 'Min. temperature difference [K]'] = min_td
 
         # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
-        if min_td >= min_temp_allowed:
+        if min_td >= min_temp_allowed - 1e-2:
             target_pressure = pressure
             break  # Exit the loop if the condition is met
 
@@ -157,6 +165,145 @@ def sens_an_p32_TESPy(hp_base, p_start, p_end, p_step, min_temp_allowed):
     min_temp_diff.round(3).to_csv('outputs/sens_an_hp_p32/results.csv')
 
     return target_pressure
+
+
+def sens_an_ttd_u_eva_ORC_TESPy(orc_base, ttd_u_eva_start, ttd_u_eva_end, step, min_temp_allowed):
+    """
+    Perform sensitivity analysis on the TESPy model for the upper terminal temperature in the evaporator (ttd_u_eva).
+
+    Parameters:
+    - orc_base (TESPy.networks.network.Network): TESPy network model for the Organic Rankine Cycle.
+    - ttd_u_eva_start (float): Starting value for ttd_u_eva in the sensitivity analysis.
+    - ttd_u_eva_end (float): Ending value for ttd_u_eva in the sensitivity analysis.
+    - step (float): Step size for ttd_u_eva in the sensitivity analysis.
+    - min_temp_allowed (float): Minimum allowed temperature difference in Kelvin.
+
+    Returns:
+    - float or None: The upper terminal temperature at which the minimum temperature difference in the evaporator
+      first becomes equal to or less than the specified 'min_temp_allowed'. Returns None if no such temperature is
+      found within the specified range.
+
+    This function sets the upper terminal temperature in the evaporator (ttd_u_eva) in the TESPy model to different
+    values within the specified range and solves the network. It then calculates the minimum temperature differences
+    for the evaporator, condenser, and intermediate heat exchanger (IHX). The loop breaks if the condition is met.
+    The results are printed, and the dataframe with results is saved to a CSV file.
+
+    Example:
+    ```
+    target_ttd_u_eva = sens_an_ttd_u_eva_ORC_TESPy(my_orc_base, 15.0, 10.0, 0.5, 2)
+    ```
+
+    Notes:
+    - The sensitivity analysis is performed by varying the upper terminal temperature in the evaporator (ttd_u_eva).
+    - The function checks the minimum temperature difference in the evaporator and stops when it first becomes equal
+      to or less than the specified 'min_temp_allowed'.
+    - The results, including the minimum temperature differences for the evaporator, condenser, and IHX, are saved
+      to a CSV file.
+
+    """
+
+    min_temp_diff = pd.DataFrame()
+
+    target_ttd_u_eva = None  # Initialize the variable to store the target value of ttd_u_eva
+
+    ttd_u_eva_previous = None
+
+    for ttd_u_eva in np.arange(ttd_u_eva_end, ttd_u_eva_start - step, -step):
+        orc_base.comps['eva'].set_attr(ttd_u=ttd_u_eva)
+        orc_base.network.solve('design')
+
+        [min_td_eva, max_td_eva] = orc_base.qt_diagram(51, 52, 63, 64, min_temp_allowed, case=f'p={ttd_u_eva}', path=f'outputs/sens_an_orc_ttd/hp_qt_evaporator_ttdueva_{ttd_u_eva}.png')
+        [min_td_cond, max_td_cond] = orc_base.qt_diagram(66, 61, 41, 42, 5, case=f'p={ttd_u_eva}')  # COND
+        [min_td_ihx, max_td_ihx] = orc_base.qt_diagram(65, 66, 62, 63, 5, case=f'p={ttd_u_eva}')  # IHX
+        min_temp_diff.loc[ttd_u_eva, 'Min. temp. diff. COND [K]'] = min_td_cond
+        min_temp_diff.loc[ttd_u_eva, 'Min. temp. diff. EVA [K]'] = min_td_eva
+        min_temp_diff.loc[ttd_u_eva, 'Min. temp. diff. IHX [K]'] = min_td_ihx
+
+        # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
+        if min_td_eva <= min_temp_allowed:
+            target_ttd_u_eva = ttd_u_eva_previous
+            break  # Exit the loop if the condition is met
+        else:
+            ttd_u_eva_previous = ttd_u_eva
+
+    # Check if the condition is met
+    if target_ttd_u_eva is not None:
+        print(f"The upper terminal temperature in the evaporator at which the minimum temperature difference in the evaporator first becomes equal to {min_temp_allowed} K is: {target_ttd_u_eva} K.")
+    else:
+        print(f"No ttd_u_eva found within the specified range.")
+
+    min_temp_diff.round(3).to_csv('outputs/sens_an_orc_ttd/results_ttdueva.csv')
+
+    return target_ttd_u_eva
+
+
+def sens_an_ttd_l_cond_ORC_TESPy(orc_base, ttd_l_cond_start, ttd_l_cond_end, step, min_temp_allowed):
+    """
+    Perform sensitivity analysis on the TESPy model for the lower terminal temperature difference in the condenser (ttd_l_cond).
+
+    Parameters:
+    - orc_base (TESPy.networks.network.Network): TESPy network model for the Organic Rankine Cycle.
+    - ttd_l_cond_start (float): Starting value for ttd_l_cond in the sensitivity analysis.
+    - ttd_l_cond_end (float): Ending value for ttd_l_cond in the sensitivity analysis.
+    - step (float): Step size for ttd_l_cond in the sensitivity analysis.
+    - min_temp_allowed (float): Minimum allowed temperature difference in Kelvin.
+
+    Returns:
+    - float or None: The lower terminal temperature difference at which the minimum temperature difference in the
+      condenser first becomes equal to or less than the specified 'min_temp_allowed'. Returns None if no such
+      temperature difference is found within the specified range.
+
+    This function sets the lower terminal temperature difference in the condenser (ttd_l_cond) in the TESPy model
+    to different values within the specified range and solves the network. It then calculates the minimum temperature
+    differences for the condenser, evaporator, and intermediate heat exchanger (IHX). The loop breaks if the condition
+    is met. The results are printed, and the dataframe with results is saved to a CSV file.
+
+    Example:
+    ```
+    target_ttd_l_cond = sens_an_ttd_l_cond_ORC_TESPy(my_orc_base, 15.0, 10.0, 0.5, 2)
+    ```
+
+    Notes:
+    - The sensitivity analysis is performed by varying the lower terminal temperature difference in the condenser (ttd_l_cond).
+    - The function checks the minimum temperature difference in the condenser and stops when it first becomes equal
+      to or less than the specified 'min_temp_allowed'.
+    - The results, including the minimum temperature differences for the condenser, evaporator, and IHX, are saved
+      to a CSV file.
+
+    """
+    min_temp_diff = pd.DataFrame()
+
+    target_ttd_l_cond = None  # Initialize the variable to store the target value of ttd_l_cond
+
+    ttd_l_cond_previous = None
+
+    for ttd_l_cond in np.arange(ttd_l_cond_end, ttd_l_cond_start - step, -step):
+        orc_base.comps['cond'].set_attr(ttd_l=ttd_l_cond)
+        orc_base.network.solve('design')
+
+        [min_td_cond, max_td_cond] = orc_base.qt_diagram(66, 61, 41, 42, min_temp_allowed, case=f'p={ttd_l_cond}', path=f'outputs/sens_an_orc_ttd/hp_qt_condenser_ttdlcond_{ttd_l_cond}.png')
+        [min_td_eva, max_td_eva] = orc_base.qt_diagram(51, 52, 63, 64, 5, case=f'p={ttd_l_cond}')  # EVA
+        [min_td_ihx, max_td_ihx] = orc_base.qt_diagram(65, 66, 62, 63, 5, case=f'p={ttd_l_cond}')  # IHX
+        min_temp_diff.loc[ttd_l_cond, 'Min. temp. diff. COND [K]'] = min_td_cond
+        min_temp_diff.loc[ttd_l_cond, 'Min. temp. diff. EVA [K]'] = min_td_eva
+        min_temp_diff.loc[ttd_l_cond, 'Min. temp. diff. IHX [K]'] = min_td_ihx
+
+        # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
+        if min_td_cond <= min_temp_allowed:
+            target_ttd_l_cond = ttd_l_cond_previous
+            break  # Exit the loop if the condition is met
+        else:
+            ttd_l_cond_previous = ttd_l_cond
+
+    # Check if the condition is met
+    if target_ttd_l_cond is not None:
+        print(f"The lower terminal temperature difference in the condenser at which the minimum temperature difference in the condenser first becomes equal to {min_temp_allowed} K is: {target_ttd_l_cond} K.")
+    else:
+        print(f"No ttd_l_cond found within the specified range.")
+
+    min_temp_diff.round(3).to_csv('outputs/sens_an_orc_ttd/results_ttdlcond.csv')
+
+    return target_ttd_l_cond
 
 
 # --- 4. FUNCTIONS FOR SIMULATION AND ANALYSIS -------------------------------------------------------------------------
@@ -765,13 +912,16 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
         df_comp_cond_conns.round(3).to_csv(f'outputs/adex_orc/adex_orc_{case}_conns.csv')
 
         if check_temp_diff:
-            qt_diagram(df_comp_cond_conns, 'EVA', 51, 52, 63, 64, 0, 'ORC',
+            [a, b] = qt_diagram(df_comp_cond_conns, 'EVA', 51, 52, 63, 64, 0, 'ORC',
                        case, path=f'outputs/diagrams/adex_orc_qt_evaporator_{case}.png', step_number=100)
-            qt_diagram(df_comp_cond_conns, 'COND', 66, 61, 41, 42, 0, 'ORC',
+            [c, d] = qt_diagram(df_comp_cond_conns, 'COND', 66, 61, 41, 42, 0, 'ORC',
                        case, path=f'outputs/diagrams/adex_orc_qt_condenser_{case}.png', step_number=100)
-            qt_diagram(df_comp_cond_conns, 'IHX', 65, 66, 62, 63, 0, 'ORC',
+            [e, f] = qt_diagram(df_comp_cond_conns, 'IHX', 65, 66, 62, 63, 0, 'ORC',
                        case, path=f'outputs/diagrams/adex_orc_qt_ihx_{case}.png', step_number=100)
-
+            print(case)
+            print(a)
+            print(c)
+            print(e)
 
     # List to store DataFrames for each combination
     ED_list = []
