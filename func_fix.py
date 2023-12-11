@@ -64,18 +64,18 @@ def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_m
 
     difference = [x - y for x, y in zip(T_hot, T_cold)]
 
-    # plot the results
-    mpl.rcParams['font.size'] = 16
-    plt.figure(figsize=(14, 7))
-    plt.plot(H_plot, T_hot, color='red')
-    plt.plot(H_plot, T_cold, color='blue')
-    plt.legend(["Hot side", "Cold side"])
-    plt.xlabel('Q [kW]')
-    plt.grid(True)
-    plt.ylabel('T [°C]')
-    plt.xlim(0, max(H_plot))
-    plt.ylim(min(T_cold) - 10, max(T_hot) + 10)
-    plt.title("QT diagram of the " + component_name + f" of the {system} \nfor the case: {case}")
+    if path is not None or plot:  # plot the results
+        mpl.rcParams['font.size'] = 16
+        plt.figure(figsize=(14, 7))
+        plt.plot(H_plot, T_hot, color='red')
+        plt.plot(H_plot, T_cold, color='blue')
+        plt.legend(["Hot side", "Cold side"])
+        plt.xlabel('Q [kW]')
+        plt.grid(True)
+        plt.ylabel('T [°C]')
+        plt.xlim(0, max(H_plot))
+        plt.ylim(min(T_cold) - 10, max(T_hot) + 10)
+        plt.title("QT diagram of the " + component_name + f" of the {system} \nfor the case: {case}")
 
     if path is not None:
         plt.savefig(path)

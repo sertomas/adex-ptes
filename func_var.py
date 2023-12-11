@@ -213,8 +213,8 @@ def sens_an_ttd_u_eva_ORC_TESPy(orc_base, ttd_u_eva_start, ttd_u_eva_end, step, 
         orc_base.network.solve('design')
 
         [min_td_eva, max_td_eva] = orc_base.qt_diagram(51, 52, 63, 64, min_temp_allowed, case=f'p={ttd_u_eva}', path=f'outputs/sens_an_orc_ttd/hp_qt_evaporator_ttdueva_{ttd_u_eva}.png')
-        [min_td_cond, max_td_cond] = orc_base.qt_diagram(66, 61, 41, 42, 5, case=f'p={ttd_u_eva}')  # COND
-        [min_td_ihx, max_td_ihx] = orc_base.qt_diagram(65, 66, 62, 63, 5, case=f'p={ttd_u_eva}')  # IHX
+        [min_td_cond, max_td_cond] = orc_base.qt_diagram(66, 61, 41, 42, 5, case=f'p={ttd_u_eva}')
+        [min_td_ihx, max_td_ihx] = orc_base.qt_diagram(65, 66, 62, 63, 5, case=f'p={ttd_u_eva}')
         min_temp_diff.loc[ttd_u_eva, 'Min. temp. diff. COND [K]'] = min_td_cond
         min_temp_diff.loc[ttd_u_eva, 'Min. temp. diff. EVA [K]'] = min_td_eva
         min_temp_diff.loc[ttd_u_eva, 'Min. temp. diff. IHX [K]'] = min_td_ihx
@@ -401,12 +401,12 @@ def init_orc(orc_base):
     return df_conns
 
 
-def solve_hp(df, p32, COMP=False, COND=False, VAL=False, EVA=False, IHX=False):
+def solve_hp(df_set, p32, COMP=False, COND=False, VAL=False, EVA=False, IHX=False):
     """
     Solve the system of equations of a heat pump system based on specified conditions.
 
     Parameters:
-    - df (pandas.DataFrame): Input DataFrame containing initial information about the connections.
+    - df_set (pandas.DataFrame): Input DataFrame containing initial information about the connections.
     - p32 (float): Pressure at state 32 in bar.
     - COMP (bool): Flag indicating whether to consider compressor operation (default is False).
     - COND (bool): Flag indicating whether to consider condenser operation (default is False).
@@ -417,6 +417,8 @@ def solve_hp(df, p32, COMP=False, COND=False, VAL=False, EVA=False, IHX=False):
     Returns:
     pandas.DataFrame: DataFrame containing updated information about the connections after solving the system of equations of the heat pump system.
     """
+
+    df = df_set.copy()
 
     # states 12 and 35 are defined according to the operating conditions of EVA
     if EVA:
@@ -487,12 +489,12 @@ def solve_hp(df, p32, COMP=False, COND=False, VAL=False, EVA=False, IHX=False):
     return df
 
 
-def solve_orc(df, ttd_u_eva, ttd_l_cond, PUMP=False, COND=False, EXP=False, EVA=False, IHX=False):
+def solve_orc(df_set, ttd_u_eva, ttd_l_cond, PUMP=False, COND=False, EXP=False, EVA=False, IHX=False):
     """
     Solve the system of equations of an Organic Rankine Cycle (ORC) based on specified conditions.
 
     Parameters:
-    - df (pandas.DataFrame): Input DataFrame containing initial information about the connections.
+    - df_set (pandas.DataFrame): Input DataFrame containing initial information about the connections.
     - ttd_u_eva (float): Upper terminal temperature difference in the evaporator.
     - ttd_l_cond (float): Lower terminal temperature difference in the condenser.
     - PUMP (bool): Flag indicating whether to consider pump operation (default is False).
@@ -504,6 +506,8 @@ def solve_orc(df, ttd_u_eva, ttd_l_cond, PUMP=False, COND=False, EXP=False, EVA=
     Returns:
     pandas.DataFrame: DataFrame containing updated  information about the connections after solving the system of equations of the Organic Rankine Cycle.
     """
+
+    df = df_set.copy()
 
     # states 42 and 61 are defined according to the operating conditions of COND
     if COND:
@@ -767,7 +771,7 @@ def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
         min_temp_diff = pd.DataFrame()
         target_pressure = None
 
-        if combo[1] == True:
+        if combo[1]:  # COND
             delt_t_min = 0
         else:
             delt_t_min = hp_pars_base['cond']['ttd_l']
@@ -790,7 +794,7 @@ def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
         else:
             print(f"No pressure found within the specified range.")
 
-        min_temp_diff.round(3).to_csv('outputs/sens_an_hp_p32/results.csv')
+        min_temp_diff.round(3).to_csv('outputs/sens_an_hp_p32/results_adex.csv')
 
         # Set the hp_base connections with the specified parameters
         df_conns = solve_hp(df_conns_set, target_pressure, **comp_ids)
@@ -895,33 +899,138 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
         comp_ids = dict(zip(components, combo))
 
         # Initialize hp_base with the current combination of component IDs
-        df_comp_cond_conns_set = init_orc(orc_base)
-
-        # Set the hp_base connections with the specified parameters
-        df_comp_cond_conns = solve_orc(df_comp_cond_conns_set, ttd_u_eva, ttd_l_cond, **comp_ids)
+        df_conns_set = init_orc(orc_base)
 
         # get the case as a string
         case = '_'.join([comp for comp, comp_id in comp_ids.items() if not comp_id])
 
+        if case == '':
+            case = 'ideal'
+        print(f"\nCase: {case}")
+
+        min_temp_diff_eva = pd.DataFrame()
+        min_temp_diff_cond = pd.DataFrame()
+        target_ttd_u_eva = None
+        target_ttd_l_cond = None
+
+        if comp_ids['COND']:  # COND
+            delta_t_min_cond = 0
+        else:
+            delta_t_min_cond = 5
+
+        if comp_ids['EVA']:  # EVA
+            delta_t_min_eva = 0
+        else:
+            delta_t_min_eva = 5
+
+        if comp_ids['IHX']:  # IHX
+            delta_t_min_ihx = 0
+        else:
+            delta_t_min_ihx = 5
+
+        # sensitivity analysis for ttd_l_con
+        ttd_l_cond_previous = None
+
+        for ttd_l_cond in np.arange(8, 0 - 0.5, - 0.5):
+            df_conns_set = init_orc(orc_base)
+            df_conns = solve_orc(df_conns_set, ttd_u_eva, ttd_l_cond, **comp_ids)
+
+            [min_td_cond, max_td_cond] = qt_diagram(df_conns, 'COND', 66, 61, 41, 42, delta_t_min_cond, 'ORC', case=f'{case} ttd_l_cond={ttd_l_cond}', step_number=100)
+            [min_td_eva, max_td_eva] = qt_diagram(df_conns, 'EVA', 51, 52, 63, 64, delta_t_min_eva, 'ORC', case=f'{case} ttd_l_cond={ttd_l_cond}', step_number=100)
+            [min_td_ihx, max_td_ihx] = qt_diagram(df_conns, 'IHX', 65, 66, 62, 63, delta_t_min_ihx, 'ORC', case=f'{case} ttd_l_cond={ttd_l_cond}', step_number=100)
+            min_temp_diff_cond.loc[ttd_l_cond, 'Min. temp. diff. COND [K]'] = min_td_cond
+            min_temp_diff_cond.loc[ttd_l_cond, 'Min. temp. diff. EVA [K]'] = min_td_eva
+            min_temp_diff_cond.loc[ttd_l_cond, 'Min. temp. diff. IHX [K]'] = min_td_ihx
+
+            if comp_ids['COND'] is False:
+                # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
+                if min_td_cond <= delta_t_min_cond:
+                    target_ttd_l_cond = ttd_l_cond_previous
+                    break  # Exit the loop if the condition is met
+                else:
+                    ttd_l_cond_previous = ttd_l_cond
+            else:
+                if ttd_l_cond_previous is None or abs(ttd_l_cond_previous) < 0.02:
+                    if min_td_cond <= delta_t_min_cond:
+                        ttd_l_cond_previous = ttd_l_cond
+                    else:
+                        target_ttd_l_cond = ttd_l_cond_previous
+                        break
+                else:
+                    ttd_l_cond_previous = ttd_l_cond
+
+                if abs(min_td_cond) < 0.02 and ttd_l_cond == 0:
+                    target_ttd_l_cond = ttd_l_cond
+
+        if target_ttd_l_cond is not None:
+            print(
+                f"The smallest ttd_l in the condenser at which the min. temp. difference in the condenser of the case {case} is equal to {delta_t_min_cond} K is: {target_ttd_l_cond} K.")
+        else:
+            print(f"No ttd_l_cond found within the specified range for the case {case}.")
+
+        min_temp_diff_cond.round(3).to_csv(f'outputs/sens_an_orc_ttd/results_ttdlcond_adex_{case}.csv')
+
+        # sensitivity analysis for ttd_u_eva
+        ttd_u_eva_previous = None
+
+        for ttd_u_eva in np.arange(15, 0 - 0.5, - 0.5):
+            df_conns_set = init_orc(orc_base)
+            df_conns = solve_orc(df_conns_set, ttd_u_eva, target_ttd_l_cond, **comp_ids)
+
+            [min_td_cond, max_td_cond] = qt_diagram(df_conns, 'COND', 66, 61, 41, 42, delta_t_min_cond, 'ORC', case=f'{case} ttd_u_eva={ttd_u_eva}', step_number=100)
+            [min_td_eva, max_td_eva] = qt_diagram(df_conns, 'EVA', 51, 52, 63, 64, delta_t_min_eva, 'ORC', case=f'{case} ttd_u_eva={ttd_u_eva}', step_number=100)
+            [min_td_ihx, max_td_ihx] = qt_diagram(df_conns, 'IHX', 65, 66, 62, 63, delta_t_min_ihx, 'ORC', case=f'{case} ttd_u_eva={ttd_u_eva}', step_number=100)
+            min_temp_diff_cond.loc[ttd_u_eva, 'Min. temp. diff. COND [K]'] = min_td_cond
+            min_temp_diff_cond.loc[ttd_u_eva, 'Min. temp. diff. EVA [K]'] = min_td_eva
+            min_temp_diff_cond.loc[ttd_u_eva, 'Min. temp. diff. IHX [K]'] = min_td_ihx
+
+            if comp_ids['EVA'] is False:
+                # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
+                if min_td_eva <= delta_t_min_eva:
+                    target_ttd_u_eva = ttd_u_eva_previous
+                    break  # Exit the loop if the condition is met
+                else:
+                    ttd_u_eva_previous = ttd_u_eva
+            else:
+                if ttd_u_eva_previous is None or abs(ttd_u_eva_previous) < 0.02:
+                    if min_td_eva <= delta_t_min_eva:
+                        ttd_u_eva_previous = ttd_u_eva
+                    else:
+                        target_ttd_u_eva = ttd_u_eva_previous
+                        break
+                else:
+                    ttd_u_eva_previous = ttd_u_eva
+
+                if abs(min_td_eva) < 0.02 and ttd_u_eva == 0:
+                    target_ttd_u_eva = ttd_u_eva
+
+        if target_ttd_l_cond is not None:
+            print(
+                f"The smallest ttd_u in the evaporator at which the min. temp. difference in the evaporator of the case {case} is equal to {delta_t_min_eva} K is: {target_ttd_u_eva} K.")
+        else:
+            print(f"No ttd_u_eva found within the specified range for the case {case}.")
+
+        min_temp_diff_cond.round(3).to_csv(f'outputs/sens_an_orc_ttd/results_ttdueva_adex_{case}.csv')
+
+        print(f"Optimal values are ttd_l_cond={target_ttd_l_cond} K and ttd_u_eva={target_ttd_u_eva} K.")
+
+        # run with opt ttd_u_eva and ttd_l_cond
+        df_conns = solve_orc(df_conns_set, target_ttd_u_eva, target_ttd_l_cond, **comp_ids)
+
         # Check the mass and energy balance
-        df_comp_cond_comps = check_balance_orc(df_comp_cond_conns, case)
+        df_comps = check_balance_orc(df_conns, case)
 
         # Save the results to CSV files
-        df_comp_cond_comps.round(3).to_csv(f'outputs/adex_orc/adex_orc_{case}_comps.csv')
-        df_comp_cond_conns = exergy_orc(df_comp_cond_conns)
-        df_comp_cond_conns.round(3).to_csv(f'outputs/adex_orc/adex_orc_{case}_conns.csv')
+        df_comps.round(3).to_csv(f'outputs/adex_orc/adex_orc_{case}_comps.csv')
+        df_conns = exergy_orc(df_conns)
+        df_conns.round(3).to_csv(f'outputs/adex_orc/adex_orc_{case}_conns.csv')
 
         if check_temp_diff:
-            [a, b] = qt_diagram(df_comp_cond_conns, 'EVA', 51, 52, 63, 64, 0, 'ORC',
-                       case, path=f'outputs/diagrams/adex_orc_qt_evaporator_{case}.png', step_number=100)
-            [c, d] = qt_diagram(df_comp_cond_conns, 'COND', 66, 61, 41, 42, 0, 'ORC',
-                       case, path=f'outputs/diagrams/adex_orc_qt_condenser_{case}.png', step_number=100)
-            [e, f] = qt_diagram(df_comp_cond_conns, 'IHX', 65, 66, 62, 63, 0, 'ORC',
-                       case, path=f'outputs/diagrams/adex_orc_qt_ihx_{case}.png', step_number=100)
-            print(case)
-            print(a)
-            print(c)
-            print(e)
+            [min_td_eva, max_td_eva] = qt_diagram(df_conns, 'EVA', 51, 52, 63, 64, 0, 'ORC', case, path=f'outputs/diagrams/adex_orc_qt_evaporator_{case}.png', step_number=100)
+            [min_td_cond, max_td_cond] = qt_diagram(df_conns, 'COND', 66, 61, 41, 42, 0, 'ORC', case, path=f'outputs/diagrams/adex_orc_qt_condenser_{case}.png', step_number=100)
+            [min_td_ihx, max_td_ihx] = qt_diagram(df_conns, 'IHX', 65, 66, 62, 63, 0, 'ORC', case, path=f'outputs/diagrams/adex_orc_qt_ihx_{case}.png', step_number=100)
+
+            print(f"The min. temp. differences are:\nCOND: {round(min_td_cond, 2)} K \nEVA: {round(min_td_eva, 2)} K\nIHX: {round(min_td_ihx, 2)} K")
 
     # List to store DataFrames for each combination
     ED_list = []
