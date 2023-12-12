@@ -897,6 +897,7 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
     for combo in combos:
         # Map the combination of component IDs to the component names
         comp_ids = dict(zip(components, combo))
+        # comp_ids = {'COND': False, 'EVA': True, 'IHX': False, 'PUMP': False, 'EXP': False}
 
         # Initialize hp_base with the current combination of component IDs
         df_conns_set = init_orc(orc_base)
@@ -944,14 +945,14 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
 
             if comp_ids['COND'] is False:
                 # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
-                if min_td_cond <= delta_t_min_cond:
+                if min_td_cond < delta_t_min_cond:
                     target_ttd_l_cond = ttd_l_cond_previous
                     break  # Exit the loop if the condition is met
                 else:
                     ttd_l_cond_previous = ttd_l_cond
             else:
                 if ttd_l_cond_previous is None or abs(ttd_l_cond_previous) < 0.02:
-                    if min_td_cond <= delta_t_min_cond:
+                    if min_td_cond < delta_t_min_cond:
                         ttd_l_cond_previous = ttd_l_cond
                     else:
                         target_ttd_l_cond = ttd_l_cond_previous
@@ -986,25 +987,17 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
 
             if comp_ids['EVA'] is False:
                 # Check if the current minimum temperature difference is equal to or less than min_temp_allowed
-                if min_td_eva <= delta_t_min_eva:
+                if min_td_eva < delta_t_min_eva:
                     target_ttd_u_eva = ttd_u_eva_previous
                     break  # Exit the loop if the condition is met
                 else:
                     ttd_u_eva_previous = ttd_u_eva
             else:
-                if ttd_u_eva_previous is None or abs(ttd_u_eva_previous) < 0.02:
-                    if min_td_eva <= delta_t_min_eva:
-                        ttd_u_eva_previous = ttd_u_eva
-                    else:
-                        target_ttd_u_eva = ttd_u_eva_previous
-                        break
-                else:
-                    ttd_u_eva_previous = ttd_u_eva
-
+                ttd_u_eva_previous = ttd_u_eva
                 if abs(min_td_eva) < 0.02 and ttd_u_eva == 0:
                     target_ttd_u_eva = ttd_u_eva
 
-        if target_ttd_l_cond is not None:
+        if target_ttd_u_eva is not None:
             print(
                 f"The smallest ttd_u in the evaporator at which the min. temp. difference in the evaporator of the case {case} is equal to {delta_t_min_eva} K is: {target_ttd_u_eva} K.")
         else:
