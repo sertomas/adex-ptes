@@ -73,6 +73,7 @@ class HeatPump:
 
         self.cop = np.nan
         self.epsilon = np.nan
+        self.solved = False
 
     # Initialize components of the heat pump.
     def generate_components(self):
@@ -116,6 +117,7 @@ class HeatPump:
         """
 
         self.network.solve('design')
+        self.solved = True
 
     # Perform a sensitivity analysis of the high pressure of the heat pump.
     def perform_sens_anal_p_high(self, p_min, p_max, stepwidth=1):
@@ -328,3 +330,64 @@ class HeatPump:
                 delta_t_min) + "K).")
 
         return [min(difference), max(difference)]
+
+    def get_param(self, obj, label, parameter):
+        """
+        Get the value of a parameter in the network's unit system.
+
+        Parameters
+        ----------
+        obj : str
+            Object to get parameter for (Components/Connections).
+
+        label : str
+            Label of the object in the TESPy model.
+
+        parameter : str
+            Name of the parameter of the object.
+
+        Returns
+        -------
+        value : float
+            Value of the parameter.
+        """
+        if obj == "Components":
+            return self.network.get_comp(label).get_attr(parameter).val
+        elif obj == "Connections":
+            return self.network.get_conn(label).get_attr(parameter).val
+
+    def set_params(self, exclude_objects=None, **kwargs):
+
+        if exclude_objects is None:
+            exclude_objects = []
+
+        if "Connections" in kwargs:
+            for c, params in kwargs["Connections"].items():
+                self.network.get_conn(c).set_attr(**params)
+
+        if "Components" in kwargs:
+            for c, params in kwargs["Components"].items():
+                self.network.get_comp(c).set_attr(**params)
+
+    def get_objective(self, objective=None):
+        """
+        Get the current objective function evaluation.
+
+        Parameters
+        ----------
+        objective : str
+            Name of the objective function.
+
+        Returns
+        -------
+        objective_value : float
+            Evaluation of the objective function.
+        """
+        if self.solved:
+            if objective == "p32":
+                return self.get_param('Connections', '32', 'p')
+            else:
+                msg = f"Objective {objective} not implemented."
+                raise NotImplementedError(msg)
+        else:
+            return np.nan
