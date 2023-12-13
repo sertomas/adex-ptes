@@ -759,9 +759,6 @@ def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
         # Map the combination of component IDs to the component names
         comp_ids = dict(zip(components, combo))
 
-        # Initialize hp_base with the current combination of component IDs
-        df_conns_set = init_hp(hp_base)
-
         # get the case as a string
         case = '_'.join([comp for comp, comp_id in comp_ids.items() if not comp_id])
 
@@ -777,9 +774,10 @@ def perf_adex_hp(hp_base, p32, components, check_temp_diff=False):
             delt_t_min = hp_pars_base['cond']['ttd_l']
 
         for p32 in np.arange(10, 15 + 0.25, 0.25):
-            solve_hp(df_conns_set, p32, **comp_ids)
+            df_conns_set = init_hp(hp_base)
+            df_conns = solve_hp(df_conns_set, p32, **comp_ids)
 
-            [min_td, max_td] = qt_diagram(df_conns_set, 'COND', 31, 32, 21, 22, delt_t_min, 'HP', f'{case}, p={p32}')
+            [min_td, max_td] = qt_diagram(df_conns, 'COND', 31, 32, 21, 22, delt_t_min, 'HP', f'{case}, p={p32}')
 
             min_temp_diff.loc[p32, 'Min. temperature difference [K]'] = min_td
 
@@ -932,7 +930,7 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
         # sensitivity analysis for ttd_l_con
         ttd_l_cond_previous = None
 
-        for ttd_l_cond in np.arange(8, 0 - 0.5, - 0.5):
+        for ttd_l_cond in np.arange(7, 0 - 0.5, - 0.5):
             df_conns_set = init_orc(orc_base)
             df_conns = solve_orc(df_conns_set, ttd_u_eva, ttd_l_cond, **comp_ids)
 
@@ -974,7 +972,7 @@ def perf_adex_orc(orc_base, ttd_u_eva, ttd_l_cond, components, check_temp_diff=F
         # sensitivity analysis for ttd_u_eva
         ttd_u_eva_previous = None
 
-        for ttd_u_eva in np.arange(15, 0 - 0.5, - 0.5):
+        for ttd_u_eva in np.arange(10, 0 - 0.5, - 0.5):
             df_conns_set = init_orc(orc_base)
             df_conns = solve_orc(df_conns_set, ttd_u_eva, target_ttd_l_cond, **comp_ids)
 

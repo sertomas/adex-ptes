@@ -25,13 +25,13 @@ with open('inputs/orc_pars.json') as file:
 
 # --- CONTROLLERS ------------------------------------------------------------------------------------------------------
 controller = {
-    'run_HP': False,  # Control flag for running the Heat Pump (HP) model.
+    'run_HP': True,  # Control flag for running the Heat Pump (HP) model.
     'run_ORC': True,  # Control flag for running the Organic Rankine Cycle (ORC) model.
 
-    'sens_HP': False,  # Control flag for performing sensitivity analysis on the HP model.
-    'sens_ORC': False,  # Control flag for performing sensitivity analysis on the ORC model.
+    'sens_HP': True,  # Control flag for performing sensitivity analysis on the HP model.
+    'sens_ORC': True,  # Control flag for performing sensitivity analysis on the ORC model.
 
-    'adex_HP': False,  # Control flag for performing advanced exergy analysis on the HP model.
+    'adex_HP': True,  # Control flag for performing advanced exergy analysis on the HP model.
     'adex_ORC': True,  # Control flag for performing advanced exergy analysis on the ORC model.
 
     'check_temp_diff': True  # Control flag for checking temperature differences in the heat exchangers during advanced exergy analysis.
