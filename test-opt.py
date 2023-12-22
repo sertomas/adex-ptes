@@ -45,10 +45,6 @@ optimize = OptimizationProblem(
 num_ind = 10
 num_gen = 100
 
-# for algorithm selection and parametrization please consider the pygmo
-# documentation! The number of generations indicated in the algorithm is
-# the number of evolutions we undertake within each generation defined in
-# num_gen
 algo = pg.algorithm(pg.ihs(gen=3, seed=42))
 # create starting population
 pop = pg.population(pg.problem(optimize), size=num_ind, seed=42)

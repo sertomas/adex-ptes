@@ -356,10 +356,7 @@ class HeatPump:
         elif obj == "Connections":
             return self.network.get_conn(label).get_attr(parameter).val
 
-    def set_params(self, exclude_objects=None, **kwargs):
-
-        if exclude_objects is None:
-            exclude_objects = []
+    def set_params(self, **kwargs):
 
         if "Connections" in kwargs:
             for c, params in kwargs["Connections"].items():
