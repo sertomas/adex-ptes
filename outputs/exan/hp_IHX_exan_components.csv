@@ -1,6 +1,0 @@
-,E_F,E_P,E_D,epsilon,group,y_Dk,y*_Dk
-Evaporator,0.35681,0.17802,0.17878,0.49894,Evaporator,0.0,0.0
-Valve,13266.13486,0.3568,13265.77806,3e-05,Valve,0.03147,0.19713
-Compressor,421517.81639,421517.81693,-0.00054,1.0,Compressor,-0.0,-0.0
-Internal Heat Exchanger,41100.3135,28572.2551,12528.0584,0.69518,Internal Heat Exchanger,0.02972,0.18617
-Condenser,395723.62367,354222.77413,41500.84954,0.89513,Condenser,0.09846,0.6167
