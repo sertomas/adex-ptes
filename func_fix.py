@@ -4,7 +4,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from CoolProp.CoolProp import PropsSI as PSI
 
-
 def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_min, system, case, plot=False, path=None,
                step_number=200):
     """
@@ -635,3 +634,135 @@ def valve_bal(df_comps, df_conns, inlet, outlet, label):
                 df_conns.loc[inlet, 'h [kJ/kg]'] - df_conns.loc[outlet, 'h [kJ/kg]'])
     df_comps.loc[label, 'S_gen [kW/K]'] = - df_conns.loc[inlet, 'm [kg/s]'] * (
                 df_conns.loc[inlet, 's [J/kgK]'] - df_conns.loc[outlet, 's [J/kgK]']) * 1e-3
+
+
+
+def pr_func(pr, p_1, p_2):
+    return pr * p_1 - p_2
+
+
+def pr_deriv(pr, p_1, p_2):
+    return {
+        "p_1": pr,
+        "p_2": -1
+    }
+
+
+def eta_s_PUMP_func(eta_s, h_1, p_1, h_2, p_2, fluid):
+    h_2s = PSI("H", "P", p_2, "S", PSI("S", "H", h_1, "P", p_1, fluid), fluid)
+    return (h_2 - h_1) * eta_s - (h_2s - h_1)
+
+
+def eta_s_PUMP_deriv(eta_s, h_1, p_1, h_2, p_2, fluid):
+    d = 1e-2
+    return {
+        "h_1": (eta_s_PUMP_func(eta_s, h_1 + d, p_1, h_2, p_2, fluid) - eta_s_PUMP_func(eta_s, h_1 - d, p_1, h_2, p_2, fluid)) / (2 * d),
+        "h_2": eta_s,
+        "p_1": (eta_s_PUMP_func(eta_s, h_1, p_1 + d, h_2, p_2, fluid) - eta_s_PUMP_func(eta_s, h_1, p_1 - d, h_2, p_2, fluid)) / (2 * d),
+        "p_2": (eta_s_PUMP_func(eta_s, h_1, p_1, h_2, p_2 + d, fluid) - eta_s_PUMP_func(eta_s, h_1, p_1, h_2, p_2 - d, fluid)) / (2 * d),
+    }
+
+
+def eta_s_EXP_func(eta_s, h_1, p_1, h_2, p_2, fluid):
+    h_2s = PSI("H", "P", p_2, "S", PSI("S", "H", h_1, "P", p_1, fluid), fluid)
+    return (h_2s - h_1) * eta_s - (h_2 - h_1)
+
+
+def eta_s_EXP_deriv(eta_s, h_1, p_1, h_2, p_2, fluid):
+    d = 1e-2
+    return {
+        "h_1": - eta_s,
+        "h_2": (eta_s_EXP_func(eta_s, h_1, p_1, h_2 + d, p_2, fluid) - eta_s_EXP_func(eta_s, h_1, p_1, h_2 - d, p_2, fluid)) / (2 * d),
+        "p_1": (eta_s_EXP_func(eta_s, h_1, p_1 + d, h_2, p_2, fluid) - eta_s_EXP_func(eta_s, h_1, p_1 - d, h_2, p_2, fluid)) / (2 * d),
+        "p_2": (eta_s_EXP_func(eta_s, h_1, p_1, h_2, p_2 + d, fluid) - eta_s_EXP_func(eta_s, h_1, p_1, h_2, p_2 - d, fluid)) / (2 * d),
+    }
+
+
+def turbo_func(P, m, h_1, h_2):
+    return - P + m * (h_2 - h_1)
+
+
+def turbo_deriv(P, m, h_1, h_2):
+    return {
+        "P": -1,
+        "m": (h_2 - h_1),
+        "h_1": -m,
+        "h_2": m
+    }
+
+
+def he_func(m_hot, h_1, h_2, m_cold, h_3, h_4):
+    return m_hot * (h_1 - h_2) + m_cold * (h_3 - h_4)
+
+
+def he_deriv(m_hot, h_1, h_2, m_cold, h_3, h_4):
+    return {
+        "m_hot": (h_1 - h_2),
+        "m_cold": (h_3 - h_4),
+        "h_1": m_hot,
+        "h_2": -m_hot,
+        "h_3": m_cold,
+        "h_4": -m_cold
+    }
+
+
+def ihx_func(h_1, h_2, h_3, h_4):
+    return (h_1 - h_2) + (h_3 - h_4)
+
+
+def ihx_deriv(h_1, h_2, h_3, h_4):
+    return {
+        "h_1": 1,
+        "h_2": -1,
+        "h_3": 1,
+        "h_4": -1
+    }
+
+
+def temperature_func(T, h, p, fluid):
+    return PSI("T", "H", h, "P", p, fluid) - T
+
+
+def temperature_deriv(T, h, p, fluid):
+    d = 1e-2
+    return {
+        "h": (PSI("T", "H", h + d, "P", p, fluid) - PSI("T", "H", h - d, "P", p, fluid)) / (2 * d),
+        "p": (PSI("T", "H", h, "P", p + d, fluid) - PSI("T", "H", h, "P", p - d, fluid)) / (2 * d)
+    }
+
+
+def ttd_func(h, p, ttd, fluid):
+    T = PSI("T", "H", h, "P", p, fluid)
+    return T + ttd
+
+
+def ttd_deriv(h, p, ttd, fluid):
+    d = 1e-2
+    return {
+        "h": (PSI("T", "H", h + d, "P", p, fluid) - PSI("T", "H", h - d, "P", p, fluid)) / (2 * d),
+        "p": (PSI("T", "H", h, "P", p + d, fluid) - PSI("T", "H", h, "P", p - d, fluid)) / (2 * d)
+    }
+
+
+def valve_func(h_1, h_2):
+    return h_1 - h_2
+
+
+def valve_deriv(h_1, h_2):
+    return {
+        "h_1": 1,
+        "h_2": -1
+    }
+
+
+def x_saturation_func(Q, h, p, fluid):
+    return PSI("Q", "H", h, "P", p, fluid) - Q
+
+
+def x_saturation_deriv(Q, h, p, fluid):
+    d = 1e-2
+    return {
+        "h": (PSI("Q", "H", h + d, "P", p, fluid) - PSI("Q", "H", h - d, "P", p, fluid)) / (2 * d),
+        "p": (PSI("Q", "H", h, "P", p + d, fluid) - PSI("Q", "H", h, "P", p - d, fluid)) / (2 * d)
+    }
+

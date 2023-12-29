@@ -1,108 +1,9 @@
 import numpy as np
-from CoolProp.CoolProp import PropsSI
+from CoolProp.CoolProp import PropsSI as PSI
 import pandas as pd
-
-def pr_func(pr, p_1, p_2):
-    return pr * p_1 - p_2
-
-
-def pr_deriv(pr, p_1, p_2):
-    return {
-        "p_1": pr,
-        "p_2": -1
-    }
-
-
-def eta_s_func(eta_s, h_1, p_1, h_2, p_2, fluid):
-    h_2s = PropsSI("H", "P", p_2, "S", PropsSI("S", "H", h_1, "P", p_1, fluid), fluid)
-    return (h_2 - h_1) * eta_s - (h_2s - h_1)
-
-
-def eta_s_deriv(eta_s, h_1, p_1, h_2, p_2, fluid):
-    d = 1e-2
-    return {
-        "h_1": (eta_s_func(eta_s, h_1 + d, p_1, h_2, p_2, fluid) - eta_s_func(eta_s, h_1 - d, p_1, h_2, p_2, fluid)) / (2 * d),
-        "h_2": eta_s,
-        "p_1": (eta_s_func(eta_s, h_1, p_1 + d, h_2, p_2, fluid) - eta_s_func(eta_s, h_1, p_1 - d, h_2, p_2, fluid)) / (2 * d),
-        "p_2": (eta_s_func(eta_s, h_1, p_1, h_2, p_2 + d, fluid) - eta_s_func(eta_s, h_1, p_1, h_2, p_2 - d, fluid)) / (2 * d),
-    }
-
-
-def turbo_func(P, m, h_1, h_2):
-    return - P + m * (h_2 - h_1)
-
-
-def turbo_deriv(P, m, h_1, h_2):
-    return {
-        "P": -1,
-        "m": (h_2 - h_1),
-        "h_1": -m,
-        "h_2": m
-    }
-
-
-def he_func(m_hot, h_1, h_2, m_cold, h_3, h_4):
-    return m_hot * (h_1 - h_2) + m_cold * (h_3 - h_4)
-
-
-def he_deriv(m_hot, h_1, h_2, m_cold, h_3, h_4):
-    return {
-        "m_hot": (h_1 - h_2),
-        "m_cold": -(h_3 - h_4),
-        "h_1": m_hot,
-        "h_2": -m_hot,
-        "h_3": m_cold,
-        "h_4": -m_cold
-    }
-
-
-def ihx_func(h_1, h_2, h_3, h_4):
-    return (h_1 - h_2) + (h_3 - h_4)
-
-
-def ihx_deriv(h_1, h_2, h_3, h_4):
-    return {
-        "h_1": 1,
-        "h_2": -1,
-        "h_3": 1,
-        "h_4": -1
-    }
-
-
-def temperature_func(T, h, p, fluid):
-    return PropsSI("T", "H", h, "P", p, fluid) - T
-
-
-def temperature_deriv(T, h, p, fluid):
-    d = 1e-2
-    return {
-        "h": (PropsSI("T", "H", h + d, "P", p, fluid) - PropsSI("T", "H", h - d, "P", p, fluid)) / (2 * d),
-        "p": (PropsSI("T", "H", h, "P", p + d, fluid) - PropsSI("T", "H", h, "P", p - d, fluid)) / (2 * d)
-    }
-
-
-def valve_func(h_1, h_2):
-    return h_1 - h_2
-
-
-def valve_deriv(h_1, h_2):
-    return {
-        "h_1": 1,
-        "h_2": -1
-    }
-
-
-def x_saturation_func(Q, h, p, fluid):
-    return PropsSI("Q", "H", h, "P", p, fluid) - Q
-
-
-def x_saturation_deriv(Q, h, p, fluid):
-    d = 1e-2
-    return {
-        "h": (PropsSI("Q", "H", h + d, "P", p, fluid) - PropsSI("Q", "H", h - d, "P", p, fluid)) / (2 * d),
-        "p": (PropsSI("Q", "H", h, "P", p + d, fluid) - PropsSI("Q", "H", h, "P", p - d, fluid)) / (2 * d)
-    }
-
+from func_fix import (pr_func, pr_deriv, eta_s_PUMP_func, eta_s_PUMP_deriv, turbo_func, turbo_deriv, he_func, he_deriv,
+                         ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
+                         x_saturation_func, x_saturation_deriv)
 
 wf = "REFPROP::R1336MZZZ"
 fluid_TES = "REFPROP::water"
@@ -171,9 +72,9 @@ residual = np.ones(20)
 iter = 0
 
 while np.linalg.norm(residual) > 1e-4:
-    # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35])
+    # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35]
     # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15   16   17   18   19
-    eta_s_def = eta_s_func(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
+    eta_s_def = eta_s_PUMP_func(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
     t36_set = temperature_func(t36, variables[0], variables[10], wf)
     eva_en_bal = he_func(variables[15], variables[13], variables[14], variables[4], variables[12], variables[9])
     t32_set = temperature_func(t32, variables[3], p32, wf)
@@ -199,7 +100,7 @@ while np.linalg.norm(residual) > 1e-4:
                          p22_set, t34_set])
     jacobian = np.zeros((20, 20))
 
-    eta_s_def_j = eta_s_deriv(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
+    eta_s_def_j = eta_s_PUMP_deriv(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
     t36_set_j = temperature_deriv(t36, variables[0], variables[10], wf)
     eva_en_bal_j = he_deriv(variables[15], variables[13], variables[14], variables[4], variables[12], variables[9])
     t32_set_j = temperature_deriv(t32, variables[3], p32, wf)
@@ -220,7 +121,7 @@ while np.linalg.norm(residual) > 1e-4:
     p22_set_j = pr_deriv(pr_cond_cold, p21, variables[18])
     t34_set_j = temperature_deriv(t34, variables[12], variables[16], wf)
 
-    # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35])
+    # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35]
     # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15   16   17   18   19
     jacobian[0, 0] = eta_s_def_j["h_1"]  # derivative of eta_s_def with respect to h36
     jacobian[0, 10] = eta_s_def_j["p_1"]  # derivative of eta_s_def with respect to p36
@@ -270,24 +171,25 @@ while np.linalg.norm(residual) > 1e-4:
     df = pd.DataFrame(jacobian)
 
     # Save the DataFrame as a CSV file
-    df.round(4).to_csv('jacobian_matrix.csv', index=False)
+    df.round(4).to_csv('jacobian_hp.csv', index=False)
 
     variables -= np.linalg.inv(jacobian).dot(residual)
 
     iter += 1
-    print(iter)
-# TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35])
+
+print(f"Simulation converged successfully after {iter} iterations.")
+# TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35]
 # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15   16   17   18   19
-t31 = PropsSI("T", "H", variables[1], "P", variables[2], wf)
-t32 = PropsSI("T", "H", variables[3], "P", p32, wf)
-t33 = PropsSI("T", "H", variables[8], "P", variables[11], wf)
-t34 = PropsSI("T", "H", variables[12], "P", variables[16], wf)
-t35 = PropsSI("T", "H", variables[9], "P", variables[19], wf)
-t36 = PropsSI("T", "H", variables[0], "P", variables[10], wf)
-t21 = PropsSI("T", "H", variables[6], "P", p21, fluid_TES)
-t22 = PropsSI("T", "H", variables[7], "P", p22, fluid_TES)
-t11 = PropsSI("T", "H", variables[13], "P", p11, fluid_ambient)
-t12 = PropsSI("T", "H", variables[14], "P", variables[17], fluid_ambient)
+t31 = PSI("T", "H", variables[1], "P", variables[2], wf)
+t32 = PSI("T", "H", variables[3], "P", p32, wf)
+t33 = PSI("T", "H", variables[8], "P", variables[11], wf)
+t34 = PSI("T", "H", variables[12], "P", variables[16], wf)
+t35 = PSI("T", "H", variables[9], "P", variables[19], wf)
+t36 = PSI("T", "H", variables[0], "P", variables[10], wf)
+t21 = PSI("T", "H", variables[6], "P", p21, fluid_TES)
+t22 = PSI("T", "H", variables[7], "P", p22, fluid_TES)
+t11 = PSI("T", "H", variables[13], "P", p11, fluid_ambient)
+t12 = PSI("T", "H", variables[14], "P", variables[17], fluid_ambient)
 
 p31 = variables[2]
 p33 = variables[11]
@@ -311,16 +213,16 @@ h12 = variables[14]
 m31 = variables[4]
 m11 = variables[15]
 
-s31 = PropsSI("S", "H", h31, "P", p31, wf)
-s32 = PropsSI("S", "H", h32, "P", p32, wf)
-s33 = PropsSI("S", "H", h33, "P", p32, wf)
-s34 = PropsSI("S", "H", h34, "P", p34, wf)
-s35 = PropsSI("S", "H", h35, "P", p35, wf)
-s36 = PropsSI("S", "H", h36, "P", p36, wf)
-s21 = PropsSI("S", "H", h21, "P", p21, fluid_TES)
-s22 = PropsSI("S", "H", h22, "P", p22, fluid_TES)
-s11 = PropsSI("S", "H", h11, "P", p11, fluid_ambient)
-s12 = PropsSI("S", "H", h12, "P", p12, fluid_ambient)
+s31 = PSI("S", "H", h31, "P", p31, wf)
+s32 = PSI("S", "H", h32, "P", p32, wf)
+s33 = PSI("S", "H", h33, "P", p32, wf)
+s34 = PSI("S", "H", h34, "P", p34, wf)
+s35 = PSI("S", "H", h35, "P", p35, wf)
+s36 = PSI("S", "H", h36, "P", p36, wf)
+s21 = PSI("S", "H", h21, "P", p21, fluid_TES)
+s22 = PSI("S", "H", h22, "P", p22, fluid_TES)
+s11 = PSI("S", "H", h11, "P", p11, fluid_ambient)
+s12 = PSI("S", "H", h12, "P", p12, fluid_ambient)
 
 df = pd.DataFrame(index=[31, 32, 33, 34, 35, 36, 21, 22, 11, 12],
                   columns=["m [kg/s]", "T [˚C]", "h [kJ/kg]", "p [bar]", "s [J/kgK]"])
