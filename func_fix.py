@@ -679,15 +679,15 @@ def eta_s_EXP_deriv(eta_s, h_1, p_1, h_2, p_2, fluid):
 
 
 def turbo_func(P, m, h_1, h_2):
-    return - P + m * (h_2 - h_1)
+    return P + m * (h_1 - h_2)
 
 
 def turbo_deriv(P, m, h_1, h_2):
     return {
-        "P": -1,
-        "m": (h_2 - h_1),
-        "h_1": -m,
-        "h_2": m
+        "P": 1,
+        "m": (h_1 - h_2),
+        "h_1": m,
+        "h_2": -m
     }
 
 

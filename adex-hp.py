@@ -1,5 +1,5 @@
 import numpy as np
-from CoolProp.CoolProp import PSI as PSI
+from CoolProp.CoolProp import PropsSI as PSI
 import pandas as pd
 
 from func_fix import (pr_func, pr_deriv, eta_s_PUMP_func, eta_s_PUMP_deriv, turbo_func, turbo_deriv, he_func, he_deriv,
@@ -143,7 +143,7 @@ while np.linalg.norm(residual) > 1e-4:
     cond_en_bal = he_func(variables[4], variables[1], variables[3], m21, variables[6], variables[7])
     t21_set = temperature_func(t21, variables[6], p21, fluid_TES)
     t22_set = temperature_func(t22, variables[7], p21, fluid_TES)  # TODO correct p22 with pr_cond_cold
-    p22_set = pr_func(pr_cond_cold, p21, variables[18])
+    p22_set = pr_func(pr_cond_cold, p21, variables[8])
 
     residual = np.array([eps_comp_def, t36_set, eps_cond_def, p31_set, turbo_en_bal, cond_en_bal, t21_set, t22_set, p22_set])
     jacobian = np.zeros((9, 9))
@@ -157,7 +157,7 @@ while np.linalg.norm(residual) > 1e-4:
     cond_en_bal_j = he_deriv(variables[4], variables[1], variables[3], m21, variables[6], variables[7])
     t21_set_j = temperature_deriv(t21, variables[6], p21, fluid_TES)
     t22_set_j = temperature_deriv(t22, variables[7], p21, fluid_TES)  # TODO correct p22 with pr_cond_cold
-    p22_set_j = pr_deriv(pr_cond_cold, p21, variables[18])
+    p22_set_j = pr_deriv(pr_cond_cold, p21, variables[8])
 
 # def eps_cond_deriv(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
     #                    h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold):

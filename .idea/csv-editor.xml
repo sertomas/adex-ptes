@@ -10,6 +10,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/jacobian_orc.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/outputs/adex_hp/E_D_values_hp.csv">
           <value>
             <Attribute>

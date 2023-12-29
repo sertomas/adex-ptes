@@ -56,7 +56,7 @@ h52 = 300e3
 h41 = 415e3
 h42 = 400e3
 m41 = 800
-P_EXP = -1000e3
+P_EXP = 540e3
 P_PUMP = 200e3
 p61 = 5 * 1e5
 p63 = 49 * 1e5
@@ -66,7 +66,8 @@ p66 = 5.6 * 1e5
 p42 = 1 * 1e5
 p52 = 5 * 1e5
 
-variables = np.array([h41, h42, p42, h61, p61, h62, h66, p66, p63, p64, h64, p65, h65, h63, h51, h52, p52, m61, m41])
+variables = np.array([h41, h42, p42, h61, p61, h62, h66, p66, p63, p64, h64, p65, h65, h63, h51, h52, p52, m61, m41,
+                      P_EXP, P_PUMP])
 residual = np.ones(len(variables))
 
 iter = 0
@@ -94,10 +95,12 @@ while np.linalg.norm(residual) > 1e-4:
     p52_set = pr_func(pr_cond_hot, variables[15], variables[16])
     cond_en_bal = he_func(m51, variables[14], variables[15], variables[17], variables[13], variables[10])
     eva_en_bal = he_func(variables[17], variables[6], variables[3], variables[18], variables[0], variables[1])
+    exp_en_bal = turbo_func(variables[19], variables[17], variables[10], variables[12])
+    pump_en_bal = turbo_func(variables[20], variables[17], variables[3], variables[5])
 
     residual = np.array([t41_set, t42_set, p42_set, t61_set, cond_outlet_sat, eta_s_PUMP_def, t66_set, p66_set,
                          p63_set, p64_set, t64_set, p65_set, eta_s_EXP_def, ihx_en_bal, t51_set, t52_set, p52_set,
-                         cond_en_bal, eva_en_bal])
+                         cond_en_bal, eva_en_bal, exp_en_bal, pump_en_bal])
     jacobian = np.zeros((len(variables), len(variables)))
 
     t41_set_j = temperature_deriv(t41, variables[0], p41, fluid_ambient)
@@ -119,6 +122,8 @@ while np.linalg.norm(residual) > 1e-4:
     p52_set_j = pr_deriv(pr_cond_hot, variables[15], variables[16])
     cond_en_bal_j = he_deriv(m51, variables[14], variables[15], variables[17], variables[13], variables[10])
     eva_en_bal_j = he_deriv(variables[17], variables[6], variables[3], variables[18], variables[0], variables[1])
+    exp_en_bal_j = turbo_deriv(variables[19], variables[17], variables[10], variables[12])
+    pump_en_bal_j = turbo_deriv(variables[20], variables[17], variables[3], variables[5])
 
     # TODO [h41, h42, p42, h61, p61, h62, h66, p66, p63, p64, h64, p65, h65, h63, h51, h52, p52, m61, m41, P_EXP, P_PUMP]
     # TODO   0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15   16   17   18    19     20
@@ -167,6 +172,15 @@ while np.linalg.norm(residual) > 1e-4:
     jacobian[18, 18] = eva_en_bal_j["m_cold"]  # derivative of eva_en_bal with respect to m41
     jacobian[18, 0] = eva_en_bal_j["h_3"]  # derivative of eva_en_bal with respect to h41
     jacobian[18, 1] = eva_en_bal_j["h_4"]  # derivative of eva_en_bal with respect to h42
+    jacobian[19, 19] = exp_en_bal_j["P"]  # derivative of exp_en_bal with respect to P_EXP
+    jacobian[19, 17] = exp_en_bal_j["m"]  # derivative of exp_en_bal with respect to m61
+    jacobian[19, 10] = exp_en_bal_j["h_1"]  # derivative of exp_en_bal with respect to h64
+    jacobian[19, 12] = exp_en_bal_j["h_2"]  # derivative of exp_en_bal with respect to h65
+    jacobian[20, 20] = pump_en_bal_j["P"]  # derivative of pump_en_bal with respect to P_PUMP
+    jacobian[20, 17] = pump_en_bal_j["m"]  # derivative of pump_en_bal with respect to m61
+    jacobian[20, 3] = pump_en_bal_j["h_1"]  # derivative of pump_en_bal with respect to h66
+    jacobian[20, 5] = pump_en_bal_j["h_2"]  # derivative of pump_en_bal with respect to h61
+
     # Convert the numpy array to a pandas DataFrame
     df = pd.DataFrame(jacobian)
 
@@ -248,9 +262,10 @@ df["p [bar]"] = df["p [bar]"] * 1e-5
 
 print(df)
 
-#P_comp = df.loc[61, "m [kg/s]"] * (df.loc[61, "h [kJ/kg]"] - df.loc[66, "h [kJ/kg]"])
-#Q_eva = df.loc[41, "m [kg/s]"] * (df.loc[41, "h [kJ/kg]"] - df.loc[42, "h [kJ/kg]"])
-#Q_cond = df.loc[51, "m [kg/s]"] * (df.loc[52, "h [kJ/kg]"] - df.loc[51, "h [kJ/kg]"])
+P_PUMP = df.loc[61, "m [kg/s]"] * (df.loc[62, "h [kJ/kg]"] - df.loc[61, "h [kJ/kg]"])
+P_EXP = df.loc[61, "m [kg/s]"] * (df.loc[64, "h [kJ/kg]"] - df.loc[65, "h [kJ/kg]"])
+Q_eva = df.loc[51, "m [kg/s]"] * (df.loc[51, "h [kJ/kg]"] - df.loc[52, "h [kJ/kg]"])
+Q_cond = df.loc[41, "m [kg/s]"] * (df.loc[42, "h [kJ/kg]"] - df.loc[41, "h [kJ/kg]"])
 
-#if round(P_comp+Q_eva-Q_cond) > 1e-5:
-#    print("Energy balances are not fulfilled! :(")
+if round(Q_eva+P_PUMP-P_EXP-Q_cond) > 1e-5:
+    print("Energy balances are not fulfilled! :(")
