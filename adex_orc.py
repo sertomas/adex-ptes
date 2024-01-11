@@ -2,8 +2,8 @@ import numpy as np
 from CoolProp.CoolProp import PropsSI as PSI
 import pandas as pd
 from func_fix import (pr_func, pr_deriv, eta_s_PUMP_func, eta_s_PUMP_deriv, turbo_func, turbo_deriv, he_func, he_deriv,
-                         ihx_func, ihx_deriv, temperature_func, temperature_deriv,x_saturation_func, x_saturation_deriv,
-                      ttd_func, eta_s_EXP_func, eta_s_EXP_deriv, qt_diagram)
+                         ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
+                         x_saturation_func, x_saturation_deriv, ttd_func, ttd_deriv, eta_s_EXP_func, eta_s_EXP_deriv)
 
 wf = "REFPROP::R134a"
 fluid_TES = "REFPROP::water"
@@ -17,27 +17,27 @@ m51 = 10            # dimensioning of the system (full load)
 
 # PRESSURE DROPS
 pr_cond_cold = 1
-pr_cond_hot = 0.95
-pr_ihx_hot = 0.985
-pr_ihx_cold = 0.985
+pr_cond_hot = 1
+pr_ihx_hot = 1
+pr_ihx_cold = 1
 pr_eva_cold = 1
-pr_eva_hot = 0.95
+pr_eva_hot = 1
 
 # AMBIENT
 t41 = 10 + 273.15  # input is known
 p41 = 1.013 * 1e5  # input is known
-t42 = 13 + 273.15  # output temperature is set
+t42 = 10.00001 + 273.15  # output temperature is set
 
 # HEAT PUMP
-ttd_l_COND = 6.5  # design variable to optimize?
-ttd_l_IHX = 5
-ttd_u_EVA = 8.5   # design variable to optimize?
+ttd_l_COND = 0  # design variable to optimize?
+ttd_l_IHX = 0
+ttd_u_EVA = 0   # design variable to optimize?
 p62 = 50 * 1e5  # variable?
 
 # TECHNICAL PARAMETERS
 # eta_s = 0.844949  # --> it seems to be different from TESPy results (look T_31)
-eta_s_PUMP = 0.85
-eta_s_EXP = 0.9
+eta_s_PUMP = 1
+eta_s_EXP = 1
 
 # pre-calculation
 t61 = t41 + ttd_l_COND
@@ -242,17 +242,17 @@ s41 = PSI("S", "H", h41, "P", p41, fluid_ambient)
 s42 = PSI("S", "H", h42, "P", p42, fluid_ambient)
 
 df = pd.DataFrame(index=[61, 62, 63, 64, 65, 66, 51, 52, 41, 42],
-                  columns=["m [kg/s]", "T [°C]", "h [kJ/kg]", "p [bar]", "s [J/kgK]", "fluid"])
-df.loc[61] = [m61, t61, h61, p61, s61, wf]
-df.loc[62] = [m61, t62, h62, p62, s62, wf]
-df.loc[63] = [m61, t63, h63, p63, s63, wf]
-df.loc[64] = [m61, t64, h64, p64, s64, wf]
-df.loc[65] = [m61, t65, h65, p65, s65, wf]
-df.loc[66] = [m61, t66, h66, p66, s66, wf]
-df.loc[51] = [m51, t51, h51, p51, s51, fluid_TES]
-df.loc[52] = [m51, t52, h52, p51, s52, fluid_TES]
-df.loc[41] = [m41, t41, h41, p41, s41, fluid_ambient]
-df.loc[42] = [m41, t42, h42, p42, s42, fluid_ambient]
+                  columns=["m [kg/s]", "T [°C]", "h [kJ/kg]", "p [bar]", "s [J/kgK]"])
+df.loc[61] = [m61, t61, h61, p61, s61]
+df.loc[62] = [m61, t62, h62, p62, s62]
+df.loc[63] = [m61, t63, h63, p63, s63]
+df.loc[64] = [m61, t64, h64, p64, s64]
+df.loc[65] = [m61, t65, h65, p65, s65]
+df.loc[66] = [m61, t66, h66, p66, s66]
+df.loc[51] = [m51, t51, h51, p51, s51]
+df.loc[52] = [m51, t52, h52, p51, s52]
+df.loc[41] = [m41, t41, h41, p41, s41]
+df.loc[42] = [m41, t42, h42, p42, s42]
 
 df["T [°C]"] = df["T [°C]"] - 273.15
 df["h [kJ/kg]"] = df["h [kJ/kg]"] * 1e-3
@@ -267,14 +267,3 @@ Q_cond = df.loc[41, "m [kg/s]"] * (df.loc[42, "h [kJ/kg]"] - df.loc[41, "h [kJ/k
 
 if round(Q_eva+P_PUMP-P_EXP-Q_cond) > 1e-5:
     print("Energy balances are not fulfilled! :(")
-
-case = 'base'
-delta_t_min = 5
-plot = True
-
-qt_diagram(df, 'COND', 66, 61, 41, 42, delta_t_min, 'ORC',
-           plot=plot, case=f'{case} ttd_l_COND={ttd_l_COND}')
-qt_diagram(df, 'EVA', 51, 52, 63, 64, delta_t_min, 'ORC',
-           plot=plot, case=f'{case} ttd_u_EVA={ttd_u_EVA}')
-qt_diagram(df, 'IHX', 65, 66, 62, 63, delta_t_min, 'ORC',
-           plot=plot, case=f'{case} ttd_l_IHX={ttd_l_IHX}')

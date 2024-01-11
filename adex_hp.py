@@ -248,7 +248,7 @@ s11 = PSI("S", "H", h11, "P", p11, fluid_ambient)
 s12 = PSI("S", "H", h12, "P", p12, fluid_ambient)
 
 df = pd.DataFrame(index=[31, 32, 33, 34, 35, 36, 21, 22, 11, 12],
-                  columns=["m [kg/s]", "T [˚C]", "h [kJ/kg]", "p [bar]", "s [J/kgK]"])
+                  columns=["m [kg/s]", "T [°C]", "h [kJ/kg]", "p [bar]", "s [J/kgK]"])
 df.loc[31] = [m31, t31, h31, p31, s31]
 df.loc[32] = [m31, t32, h32, p32, s32]
 df.loc[33] = [m31, t33, h33, p33, s33]
@@ -260,7 +260,7 @@ df.loc[22] = [m21, t22, h22, p21, s22]
 df.loc[11] = [m11, t11, h11, p11, s11]
 df.loc[12] = [m11, t12, h12, p12, s12]
 
-df["T [˚C]"] = df["T [˚C]"] - 273.15
+df["T [°C]"] = df["T [°C]"] - 273.15
 df["h [kJ/kg]"] = df["h [kJ/kg]"] * 1e-3
 df["p [bar]"] = df["p [bar]"] * 1e-5
 
