@@ -4,6 +4,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from CoolProp.CoolProp import PropsSI as PSI
 
+T_0 = 283.15
+
 def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_min, system, case, plot=False, path=None,
                step_number=200):
     """
@@ -764,5 +766,102 @@ def x_saturation_deriv(Q, h, p, fluid):
     return {
         "h": (PSI("Q", "H", h + d, "P", p, fluid) - PSI("Q", "H", h - d, "P", p, fluid)) / (2 * d),
         "p": (PSI("Q", "H", h, "P", p + d, fluid) - PSI("Q", "H", h, "P", p - d, fluid)) / (2 * d)
+    }
+
+
+def eps_compressor_func(epsilon, h_1, p_1, h_2, p_2, fluid):
+    # epsilon = (E2 - E1) / W
+    #         = (e2 - e1) / (h2 - h1)
+    #         = (h2 - h1 - T0 - (s2 - s1)) / (h2 - h1)
+    s_2 = PSI("S", "H", h_2, "P", p_2, fluid)
+    s_1 = PSI("S", "H", h_1, "P", p_1, fluid)
+    return (h_2 - h_1) * epsilon - (h_2 - h_1 - T_0 * (s_2 - s_1))
+
+
+def eps_compressor_deriv(epsilon, h_1, p_1, h_2, p_2, fluid):
+    d = 1e-2
+    return {
+        "h_1": (eps_compressor_func(epsilon, h_1 + d, p_1, h_2, p_2, fluid) - eps_compressor_func(epsilon, h_1 - d, p_1, h_2, p_2, fluid)) / (2 * d),
+        "h_2": (eps_compressor_func(epsilon, h_1, p_1, h_2 + d, p_2, fluid) - eps_compressor_func(epsilon, h_1, p_1, h_2 - d, p_2, fluid)) / (2 * d),
+        "p_1": (eps_compressor_func(epsilon, h_1, p_1 + d, h_2, p_2, fluid) - eps_compressor_func(epsilon, h_1, p_1 - d, h_2, p_2, fluid)) / (2 * d),
+        "p_2": (eps_compressor_func(epsilon, h_1, p_1, h_2, p_2 + d, fluid) - eps_compressor_func(epsilon, h_1, p_1, h_2, p_2 - d, fluid)) / (2 * d),
+    }
+
+
+def eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
+                h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold):
+    # epsilon = (E_cold_out - E_cold_in) / (E_hot_in - E_hot_out)
+    #         = m_cold * (e_cold_out - e_cold_in) / (m_hot * (e_hot_in - e_hot_out))
+    #         = m_cold * (h_cold_out - h_cold_in - T0 * (s_cold_out - s_cold_in)) / 
+    #           (m_hot * (h_hot_in - h_hot_out - T0 * (s_hot_in - s_hot_out)))
+    s_hot_in = PSI("S", "H", h_hot_in, "P", p_hot_in, fluid_hot)
+    s_hot_out = PSI("S", "H", h_hot_out, "P", p_hot_out, fluid_hot)
+    s_cold_in = PSI("S", "H", h_cold_in, "P", p_cold_in, fluid_cold)
+    s_cold_out = PSI("S", "H", h_cold_out, "P", p_cold_out, fluid_cold)
+    return (m_hot * (h_hot_in - h_hot_out - T_0 * (s_hot_in - s_hot_out)) * epsilon
+            - m_cold * (h_cold_out - h_cold_in - T_0 * (s_cold_out - s_cold_in)))
+
+
+def eps_he_deriv(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
+                 h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold):
+    d = 1e-2
+    return {
+        "h_hot_in": (eps_he_func(epsilon, h_hot_in + d, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                     - eps_he_func(epsilon, h_hot_in - d, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d),
+        "h_hot_out": (eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out + d, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                      - eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out - d, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d),
+        "p_hot_in": (eps_he_func(epsilon, h_hot_in, p_hot_in + d, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                     - eps_he_func(epsilon, h_hot_in, p_hot_in - d, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d),
+        "p_hot_out": (eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out + d, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                      - eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out - d, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d),
+        "h_cold_in": (eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in + d, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                      - eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in - d, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d),
+        "h_cold_out": (eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out + d, p_cold_out, m_cold, fluid_cold)
+                       - eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out - d, p_cold_out, m_cold, fluid_cold)) / (2 * d),
+        "p_cold_in": (eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in + d, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                      - eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in - d, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d),
+        "p_cold_out": (eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out + d, m_cold, fluid_cold)
+                       - eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out - d, m_cold, fluid_cold)) / (2 * d),
+        "m_hot": (eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot + d, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                  - eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot - d, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d),
+        "m_cold": (eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold + d, fluid_cold)
+                   - eps_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold - d, fluid_cold)) / (2 * d)
+    }
+
+
+def eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot,
+                h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold):
+    # epsilon = (E_cold_out - E_cold_in) / (E_hot_in - E_hot_out)
+    #         = (e_cold_out - e_cold_in) / (e_hot_in - e_hot_out)
+    #         = (h_cold_out - h_cold_in - T0 * (s_cold_out - s_cold_in)) / 
+    #           (h_hot_in - h_hot_out - T0 * (s_hot_in - s_hot_out))
+    s_hot_in = PSI("S", "H", h_hot_in, "P", p_hot_in, fluid_hot)
+    s_hot_out = PSI("S", "H", h_hot_out, "P", p_hot_out, fluid_hot)
+    s_cold_in = PSI("S", "H", h_cold_in, "P", p_cold_in, fluid_cold)
+    s_cold_out = PSI("S", "H", h_cold_out, "P", p_cold_out, fluid_cold)
+    return ((h_hot_in - h_hot_out - T_0 * (s_hot_in - s_hot_out)) * epsilon
+            - (h_cold_out - h_cold_in - T_0 * (s_cold_out - s_cold_in)))
+
+
+def eps_ihx_deriv(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot,
+                 h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold):
+    d = 1e-2
+    return {
+        "h_hot_in": (eps_ihx_func(epsilon, h_hot_in + d, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                     - eps_ihx_func(epsilon, h_hot_in - d, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "h_hot_out": (eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out + d, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                      - eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out - d, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "p_hot_in": (eps_ihx_func(epsilon, h_hot_in, p_hot_in + d, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                     - eps_ihx_func(epsilon, h_hot_in, p_hot_in - d, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "p_hot_out": (eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out + d, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                      - eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out - d, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "h_cold_in": (eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in + d, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                      - eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in - d, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "h_cold_out": (eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out + d, p_cold_out, fluid_cold)
+                       - eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out - d, p_cold_out, fluid_cold)) / (2 * d),
+        "p_cold_in": (eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in + d, h_cold_out, p_cold_out, fluid_cold)
+                      - eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in - d, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "p_cold_out": (eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out + d, fluid_cold)
+                       - eps_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out - d, fluid_cold)) / (2 * d),
     }
 
