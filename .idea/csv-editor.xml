@@ -3,6 +3,27 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="/hp_simult_epsilon.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/hp_simult_strems.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/jacobian_hp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/jacobian_matrix.csv">
           <value>
             <Attribute>
@@ -242,6 +263,13 @@
           </value>
         </entry>
         <entry key="/outputs/exan/hp_base_exan_components.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/exan/hp_base_exan_connections.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
