@@ -27,6 +27,8 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
     pr_eva_cold = 0.95
     pr_eva_hot = 1
 
+    pr_cond_part_cold = np.cbrt(pr_cond_cold)  # COND pressure drop is split equally (geom, mean) between ECO-EVA-SH
+    pr_cond_part_hot = np.cbrt(pr_cond_hot)  # COND pressure drop is split equally (geom, mean) between ECO-EVA-SH
 
     # AMBIENT
     t11 = 10 + 273.15  # input is known
@@ -61,22 +63,39 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
     p36 = 0.26 * 1e5
     p33 = 12.3 * 1e5
     h34 = 233e3
-    h11 = 409e3
-    h12 = 406e3
-    m11 = 595
+    # h11 = 409e3
+    # h12 = 406e3
+    # m11 = 595
     p34 = 0.27 * 1e5
     p12 = 1 * 1e5
     p22 = 5 * 1e5
     p35 = 0.2 * 1e5
+    h38 = 480e3
+    h39 = 370e3
+    h28 = 390e3
+    h29 = 540e3
+    p38 = 13e5
+    p39 = 13e5
+    p28 = 5e5
+    p29 = 5e5
 
-    variables = np.array([h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35])
-    residual = np.ones(20)
+    variables = np.array([h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
+                          h38, h39, h28, h29, p38, p39, p28, p29])
+
+    residual = np.ones(len(variables))
 
     iter = 0
 
     while np.linalg.norm(residual) > 1e-4:
-        # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35]
-        # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15   16   17   18   19
+        # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22,
+        # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15   16   17   18
+        #       p35, h38, h39, h28, h29, p22]
+        #        19   20   21   22   23
+
+        # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
+        # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
+        #       h38, h39, h28, h29, p38, p39, p28, p29,])]
+        # TODO   16,  17   18   19   20   21   22   23 
 
         #   0
         eta_s_def = eta_s_PUMP_func(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
@@ -85,68 +104,115 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
         #   2
         t32_set = temperature_func(t32, variables[3], target_p32, wf)
         #   3
-        eva_en_bal = he_func(variables[15], variables[13], variables[14], variables[4], variables[12], variables[9])
-        #   4
+        # eva_en_bal = he_func(variables[15], variables[13], variables[14], variables[4], variables[12], variables[9]) # TODO not used anymore
         p31_set = pr_func(pr_cond_hot, variables[2], target_p32)
-        #   5
+        #   4
         turbo_en_bal = turbo_func(variables[5], variables[4], variables[0], variables[1])
-        #   6
+        #   5
         cond_en_bal = he_func(variables[4], variables[1], variables[3], m21, variables[6], variables[7])
-        #   7
+        #   6
         t21_set = temperature_func(t21, variables[6], p21, fluid_TES)
+        #   7
+        t22_set = temperature_func(t22, variables[7], variables[23], fluid_TES)
         #   8
-        t22_set = temperature_func(t22, variables[7], p22, fluid_TES)  # TODO correct p22 with pr_cond_cold
-        #   9
         ihx_en_bal = ihx_func(variables[3], variables[8], variables[9], variables[0])
+        #   9
+        p36_set = pr_func(pr_ihx_cold, variables[15], variables[10])
         #   10
-        p36_set = pr_func(pr_ihx_cold, variables[19], variables[10])
-        #   11
         p33_set = pr_func(pr_ihx_hot, target_p32, variables[11])
-        #   12
+        #   11
         valve_en_bal = valve_func(variables[8], variables[12])
+        #   12
+        # t11_set = temperature_func(t11, variables[13], p11, fluid_ambient) # TODO t11_set not used anymore
+        # t12_set = temperature_func(t12, variables[14], p12, fluid_ambient) # TODO t12_set not used anymore
+        eva_outlet_sat = x_saturation_func(1, variables[9], variables[15], wf)
         #   13
-        t11_set = temperature_func(t11, variables[13], p11, fluid_ambient)
+        t34_set = temperature_func(t34, variables[12], variables[13], wf)
         #   14
-        t12_set = temperature_func(t12, variables[14], p12, fluid_ambient)
+        # p12_set = pr_func(pr_eva_hot, p11, variables[17]) # TODO t12_set not used anymore
+        p22_set = pr_func(pr_cond_cold, p21, variables[14])
         #   15
-        eva_outlet_sat = x_saturation_func(1, variables[9], variables[19], wf)
+        p35_set = pr_func(pr_eva_cold, variables[13], variables[15])
         #   16
-        t34_set = temperature_func(t34, variables[12], variables[16], wf)
+        cond_eco_outlet_sat = x_saturation_func(1, variables[16], target_p32, wf)
         #   17
-        p12_set = pr_func(pr_eva_hot, p11, variables[17])
+        cond_eco_en_bal = he_func(variables[4], variables[1], variables[16], m21, variables[19], variables[7])
         #   18
-        p22_set = pr_func(pr_cond_cold, p21, variables[18])
+        cond_sh_inlet_sat = x_saturation_func(0, variables[17], target_p32, wf)
         #   19
-        p35_set = pr_func(pr_eva_cold, variables[16], variables[19])
+        cond_sh_en_bal = he_func(variables[4], variables[17], variables[3], m21, variables[6], variables[18])
+        # 20
+        p38_set = pr_func(pr_cond_part_hot, variables[2], variables[20])
+        # 21
+        p39_set = pr_func(pr_cond_part_hot, variables[20], variables[21])
+        # 22
+        p28_set = pr_func(pr_cond_part_cold, p21, variables[22])
+        # 23
+        p29_set = pr_func(pr_cond_part_cold, variables[22], variables[23])
 
-        residual = np.array([eta_s_def, t36_set, t32_set, eva_en_bal, p31_set, turbo_en_bal, cond_en_bal, t21_set, t22_set,
-                             ihx_en_bal, p36_set, p33_set, valve_en_bal, t11_set, t12_set, eva_outlet_sat, t34_set, p12_set,
-                             p22_set, p35_set], dtype=float)
-        jacobian = np.zeros((20, 20))
+        residual = np.array([eta_s_def, t36_set, t32_set, p31_set, turbo_en_bal, cond_en_bal, t21_set, t22_set,
+                             ihx_en_bal, p36_set, p33_set, valve_en_bal, eva_outlet_sat, t34_set, p22_set, p35_set, 
+                             cond_eco_outlet_sat, cond_eco_en_bal, cond_sh_inlet_sat, cond_sh_en_bal, p38_set,
+                             p39_set, p28_set, p29_set], dtype=float)
+        jacobian = np.zeros((len(variables), len(variables)))
 
+        #   0
         eta_s_def_j = eta_s_PUMP_deriv(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
+        #   1
         t36_set_j = temperature_deriv(t36, variables[0], variables[10], wf)
+        #   2
         t32_set_j = temperature_deriv(t32, variables[3], target_p32, wf)
-        eva_en_bal_j = he_deriv(variables[15], variables[13], variables[14], variables[4], variables[12], variables[9])
+        #   3
+        # eva_en_bal_j = he_deriv(variables[15], variables[13], variables[14], variables[4], variables[12], variables[9]) # TODO not used anymore
         p31_set_j = pr_deriv(pr_cond_hot, variables[2], target_p32)
+        #   4
         turbo_en_bal_j = turbo_deriv(variables[5], variables[4], variables[0], variables[1])
+        #   5
         cond_en_bal_j = he_deriv(variables[4], variables[1], variables[3], m21, variables[6], variables[7])
+        #   6
         t21_set_j = temperature_deriv(t21, variables[6], p21, fluid_TES)
+        #   7
         t22_set_j = temperature_deriv(t22, variables[7], p22, fluid_TES)  # TODO correct p22 with pr_cond_cold
+        #   8
         ihx_en_bal_j = ihx_deriv(variables[3], variables[8], variables[9], variables[0])
-        p36_set_j = pr_deriv(pr_ihx_cold, variables[19], variables[10])
+        #   9
+        p36_set_j = pr_deriv(pr_ihx_cold, variables[15], variables[10])
+        #   10
         p33_set_j = pr_deriv(pr_ihx_hot, target_p32, variables[11])
+        #   11
         valve_en_bal_j = valve_deriv(variables[8], variables[12])
-        t11_set_j = temperature_deriv(t11, variables[13], p11, fluid_ambient)
-        t12_set_j = temperature_deriv(t12, variables[14], p12, fluid_ambient)
-        eva_outlet_sat_j = x_saturation_deriv(1, variables[9], variables[19], wf)
-        t34_set_j = temperature_deriv(t34, variables[12], variables[16], wf)
-        p12_set_j = pr_deriv(pr_eva_hot, p11, variables[17])
-        p22_set_j = pr_deriv(pr_cond_cold, p21, variables[18])
-        p35_set_j = pr_deriv(pr_eva_cold, variables[16], variables[19])
+        #   12
+        # t11_set = temperature_deriv(t11, variables[13], p11, fluid_ambient) # TODO t11_set not used anymore
+        # t12_set = temperature_deriv(t12, variables[14], p12, fluid_ambient) # TODO t12_set not used anymore
+        eva_outlet_sat_j = x_saturation_deriv(1, variables[9], variables[15], wf)
+        #   13
+        t34_set_j = temperature_deriv(t34, variables[12], variables[13], wf)
+        #   14
+        # p12_set = pr_deriv(pr_eva_hot, p11, variables[17]) # TODO t12_set not used anymore
+        p22_set_j = pr_deriv(pr_cond_cold, p21, variables[14])
+        #   15
+        p35_set_j = pr_deriv(pr_eva_cold, variables[13], variables[15])
+        #   16
+        cond_eco_outlet_sat_j = x_saturation_deriv(1, variables[16], p31, wf)
+        #   17
+        cond_eco_en_bal_j = he_deriv(variables[4], variables[1], variables[16], m21, variables[19], variables[7])
+        #   18
+        cond_sh_inlet_sat_j = x_saturation_deriv(0, variables[17], p31, wf)
+        #   19
+        cond_sh_en_bal_j = he_deriv(variables[4], variables[17], variables[3], m21, variables[6], variables[18])
+        # 20
+        p38_set_j = pr_deriv(pr_cond_part_hot, variables[2], variables[20])
+        # 21
+        p39_set_j = pr_deriv(pr_cond_part_hot, variables[20], variables[21])
+        # 22
+        p28_set_j = pr_deriv(pr_cond_part_cold, p21, variables[22])
+        # 23
+        p29_set_j = pr_deriv(pr_cond_part_cold, variables[22], variables[23])
 
-        # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35]
-        # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15   16   17   18   19
+        # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
+        # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
+        #       h38, h39, h28, h29, p38, p39, p28, p29,])]
+        # TODO   16,  17   18   19   20   21   22   23
         jacobian[0, 0] = eta_s_def_j["h_1"]  # derivative of eta_s_def with respect to h36
         jacobian[0, 10] = eta_s_def_j["p_1"]  # derivative of eta_s_def with respect to p36
         jacobian[0, 1] = eta_s_def_j["h_2"]  # derivative of eta_s_def with respect to h31
@@ -154,80 +220,93 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
         jacobian[1, 0] = t36_set_j["h"]  # derivative of t36_set with respect to h36
         jacobian[1, 10] = t36_set_j["p"]  # derivative of t36_set with respect to p36
         jacobian[2, 3] = t32_set_j["h"]  # derivative of t32_set with respect to h32
-        jacobian[3, 15] = eva_en_bal_j["m_hot"]  # derivative of eva_en_bal with respect to h35
-        jacobian[3, 13] = eva_en_bal_j["h_1"]  # derivative of eva_en_bal with respect to h35
-        jacobian[3, 14] = eva_en_bal_j["h_2"]  # derivative of eva_en_bal with respect to h35
-        jacobian[3, 4] = eva_en_bal_j["m_cold"]  # derivative of eva_en_bal with respect to h35
-        jacobian[3, 12] = eva_en_bal_j["h_3"]  # derivative of eva_en_bal with respect to h35
-        jacobian[3, 9] = eva_en_bal_j["h_4"]  # derivative of eva_en_bal with respect to h35
-        jacobian[4, 2] = p31_set_j["p_1"]  # derivative of p31_set with respect to p31
-        jacobian[5, 5] = turbo_en_bal_j["P"]  # derivative of turbo_en_bal with respect to power
-        jacobian[5, 4] = turbo_en_bal_j["m"]  # derivative of turbo_en_bal with respect to m31
-        jacobian[5, 0] = turbo_en_bal_j["h_1"]  # derivative of turbo_en_bal with respect to h36
-        jacobian[5, 1] = turbo_en_bal_j["h_2"]  # derivative of turbo_en_bal with respect to h31
-        jacobian[6, 1] = cond_en_bal_j["h_1"]  # derivative of cond_en_bal with respect to h31
-        jacobian[6, 3] = cond_en_bal_j["h_2"]  # derivative of cond_en_bal with respect to h32
-        jacobian[6, 4] = cond_en_bal_j["m_hot"]  # derivative of cond_en_bal with respect to m31
-        jacobian[6, 6] = cond_en_bal_j["h_3"]  # derivative of cond_en_bal with respect to h21
-        jacobian[6, 7] = cond_en_bal_j["h_4"]  # derivative of cond_en_bal with respect to h22
-        jacobian[7, 6] = t21_set_j["h"]  # derivative of t21_set with respect to h21
-        jacobian[8, 7] = t22_set_j["h"]  # derivative of t22_set with respect to h22
-        jacobian[9, 3] = ihx_en_bal_j["h_1"]  # derivative of ihx_en_bal with respect to h32
-        jacobian[9, 8] = ihx_en_bal_j["h_2"]  # derivative of ihx_en_bal with respect to h33
-        jacobian[9, 9] = ihx_en_bal_j["h_3"]  # derivative of ihx_en_bal with respect to h35
-        jacobian[9, 0] = ihx_en_bal_j["h_4"]  # derivative of ihx_en_bal with respect to h36
-        jacobian[10, 10] = p36_set_j["p_2"]  # derivative of p36_set with respect to p36
-        jacobian[10, 19] = p36_set_j["p_1"]  # derivative of p36_set with respect to p35
-        jacobian[11, 11] = p33_set_j["p_2"]  # derivative of p33_set with respect to p33
-        jacobian[12, 12] = valve_en_bal_j["h_2"]  # derivative of valve_en_bal with respect to h34
-        jacobian[13, 13] = t11_set_j["h"]  # derivative of t11_set with respect to h11
-        jacobian[14, 14] = t12_set_j["h"]  # derivative of t12_set with respect to h12
-        jacobian[15, 9] = eva_outlet_sat_j["h"]  # derivative of eva_outlet_sat with respect to h35
-        jacobian[15, 19] = eva_outlet_sat_j["p"]  # derivative of eva_outlet_sat with respect to p35
-        jacobian[16, 12] = t34_set_j["h"]  # derivative of t34_set with respect to h34
-        jacobian[16, 16] = t34_set_j["p"]  # derivative of t34_set with respect to p34
-        jacobian[17, 17] = p12_set_j["p_2"]  # derivative of p12_set with respect to p33
-        jacobian[18, 18] = p22_set_j["p_2"]  # derivative of p22_set with respect to p22
-        jacobian[19, 16] = p35_set_j["p_1"]  # derivative of p34_set with respect to p34
-        jacobian[19, 19] = p35_set_j["p_2"]  # derivative of p34_set with respect to p35
-
+        #jacobian[3, 15] = eva_en_bal_j["m_hot"]  # derivative of eva_en_bal with respect to h35
+        #jacobian[3, 13] = eva_en_bal_j["h_1"]  # derivative of eva_en_bal with respect to h35
+        #jacobian[3, 14] = eva_en_bal_j["h_2"]  # derivative of eva_en_bal with respect to h35
+        #jacobian[3, 4] = eva_en_bal_j["m_cold"]  # derivative of eva_en_bal with respect to h35
+        #jacobian[3, 12] = eva_en_bal_j["h_3"]  # derivative of eva_en_bal with respect to h35
+        #jacobian[3, 9] = eva_en_bal_j["h_4"]  # derivative of eva_en_bal with respect to h35
+        jacobian[3, 2] = p31_set_j["p_1"]  # derivative of p31_set with respect to p31
+        jacobian[4, 5] = turbo_en_bal_j["P"]  # derivative of turbo_en_bal with respect to power
+        jacobian[4, 4] = turbo_en_bal_j["m"]  # derivative of turbo_en_bal with respect to m31
+        jacobian[4, 0] = turbo_en_bal_j["h_1"]  # derivative of turbo_en_bal with respect to h36
+        jacobian[4, 1] = turbo_en_bal_j["h_2"]  # derivative of turbo_en_bal with respect to h31
+        jacobian[5, 1] = cond_en_bal_j["h_1"]  # derivative of cond_en_bal with respect to h31
+        jacobian[5, 3] = cond_en_bal_j["h_2"]  # derivative of cond_en_bal with respect to h32
+        jacobian[5, 4] = cond_en_bal_j["m_hot"]  # derivative of cond_en_bal with respect to m31
+        jacobian[5, 6] = cond_en_bal_j["h_3"]  # derivative of cond_en_bal with respect to h21
+        jacobian[5, 7] = cond_en_bal_j["h_4"]  # derivative of cond_en_bal with respect to h22
+        jacobian[6, 6] = t21_set_j["h"]  # derivative of t21_set with respect to h21
+        jacobian[7, 7] = t22_set_j["h"]  # derivative of t22_set with respect to h22
+        jacobian[8, 3] = ihx_en_bal_j["h_1"]  # derivative of ihx_en_bal with respect to h32
+        jacobian[8, 8] = ihx_en_bal_j["h_2"]  # derivative of ihx_en_bal with respect to h33
+        jacobian[8, 9] = ihx_en_bal_j["h_3"]  # derivative of ihx_en_bal with respect to h35
+        jacobian[8, 0] = ihx_en_bal_j["h_4"]  # derivative of ihx_en_bal with respect to h36
+        jacobian[9, 10] = p36_set_j["p_2"]  # derivative of p36_set with respect to p36
+        jacobian[9, 15] = p36_set_j["p_1"]  # derivative of p36_set with respect to p35
+        jacobian[10, 11] = p33_set_j["p_2"]  # derivative of p33_set with respect to p33
+        jacobian[11, 12] = valve_en_bal_j["h_2"]  # derivative of valve_en_bal with respect to h34
+        #jacobian[13, 13] = t11_set_j["h"]  # derivative of t11_set with respect to h11
+        #jacobian[14, 14] = t12_set_j["h"]  # derivative of t12_set with respect to h12
+        jacobian[12, 9] = eva_outlet_sat_j["h"]  # derivative of eva_outlet_sat with respect to h35
+        jacobian[12, 15] = eva_outlet_sat_j["p"]  # derivative of eva_outlet_sat with respect to p35
+        jacobian[13, 12] = t34_set_j["h"]  # derivative of t34_set with respect to h34
+        jacobian[13, 13] = t34_set_j["p"]  # derivative of t34_set with respect to p34
+        #jacobian[17, 17] = p12_set_j["p_2"]  # derivative of p12_set with respect to p33
+        jacobian[14, 14] = p22_set_j["p_2"]  # derivative of p22_set with respect to p22
+        jacobian[15, 13] = p35_set_j["p_1"]  # derivative of p34_set with respect to p34
+        jacobian[15, 15] = p35_set_j["p_2"]  # derivative of p34_set with respect to p35
+        jacobian[16, 16] = cond_eco_outlet_sat_j["h"]
+        jacobian[17, 4] = cond_eco_en_bal_j["m_hot"]
+        jacobian[17, 1] = cond_eco_en_bal_j["h_1"]
+        jacobian[17, 16] = cond_eco_en_bal_j["h_2"]
+        jacobian[17, 19] = cond_eco_en_bal_j["h_3"]
+        jacobian[17, 7] = cond_eco_en_bal_j["h_4"]
+        jacobian[18, 17] = cond_sh_inlet_sat_j["h"]
+        jacobian[19, 4] = cond_sh_en_bal_j["m_hot"]
+        jacobian[19, 17] = cond_sh_en_bal_j["h_1"]
+        jacobian[19, 6] = cond_sh_en_bal_j["h_2"]
+        jacobian[19, 3] = cond_sh_en_bal_j["h_3"]
+        jacobian[19, 18] = cond_sh_en_bal_j["h_4"]
+        jacobian[20, 2] = p38_set_j["p_1"]
+        jacobian[20, 20] = p38_set_j["p_2"]
+        jacobian[21, 20] = p39_set_j["p_1"]
+        jacobian[21, 21] = p39_set_j["p_2"]
+        jacobian[22, 22] = p28_set_j["p_2"]
+        jacobian[23, 22] = p29_set_j["p_1"]
+        jacobian[23, 23] = p29_set_j["p_2"]
         # Convert the numpy array to a pandas DataFrame
         df = pd.DataFrame(jacobian)
 
         # Save the DataFrame as a CSV file
         df.round(4).to_csv('jacobian_hp.csv', index=False)
 
-        dump = 0.799
-
-        variables -= dump * np.linalg.inv(jacobian).dot(residual)
+        variables -= np.linalg.inv(jacobian).dot(residual)
 
         iter += 1
 
         cond_number = np.linalg.cond(jacobian)
-        print("Condition number: ", cond_number, " and residual: ", np.linalg.norm(residual))
+        # print("Condition number: ", cond_number, " and residual: ", np.linalg.norm(residual))
 
-    print(f"Simulation converged successfully after {iter} iterations.")
-    print(f"p32 = {round(target_p32, 3)} bar.")
-    # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, h11, h12, m11, p34, p12, p22, p35]
-    # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15   16   17   18   19
-    t31 = PSI("T", "H", variables[1], "P", variables[2], wf)
-    t32 = PSI("T", "H", variables[3], "P", target_p32, wf)
-    t33 = PSI("T", "H", variables[8], "P", variables[11], wf)
-    t34 = PSI("T", "H", variables[12], "P", variables[16], wf)
-    t35 = PSI("T", "H", variables[9], "P", variables[19], wf)
-    t36 = PSI("T", "H", variables[0], "P", variables[10], wf)
-    t21 = PSI("T", "H", variables[6], "P", p21, fluid_TES)
-    t22 = PSI("T", "H", variables[7], "P", p22, fluid_TES)
-    t11 = PSI("T", "H", variables[13], "P", p11, fluid_ambient)
-    t12 = PSI("T", "H", variables[14], "P", variables[17], fluid_ambient)
+    # print(f"Simulation converged successfully after {iter} iterations.")
+    print(f"p32 = {round(target_p32*1e-5, 4)} bar.")
+
+    # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
+    # TODO   0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
+    #       h38, h39, h28, h29, p38, p39, p28, p29,])]
+    # TODO   16,  17   18   19   20   21   22   23
 
     p31 = variables[2]
+    p32 = target_p32
     p33 = variables[11]
-    p34 = variables[16]
-    p35 = variables[19]
+    p34 = variables[13]
+    p35 = variables[15]
     p36 = variables[10]
-    p12 = variables[17]
-    p22 = variables[18]
+    p22 = variables[14]
+    p38 = variables[20]
+    p39 = variables[21]
+    p28 = variables[22]
+    p29 = variables[23]
 
     h31 = variables[1]
     h32 = variables[3]
@@ -237,35 +316,53 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
     h35 = variables[9]
     h21 = variables[6]
     h22 = variables[7]
-    h11 = variables[13]
-    h12 = variables[14]
+    h38 = variables[16]
+    h39 = variables[17]
+    h28 = variables[18]
+    h29 = variables[19]
 
-    m31 = variables[4]
-    m11 = variables[15]
+    t31 = PSI("T", "H", h31, "P", p31, wf)
+    t32 = PSI("T", "H", h32, "P", p32, wf)
+    t33 = PSI("T", "H", h33, "P", p33, wf)
+    t34 = PSI("T", "H", h34, "P", p34, wf)
+    t35 = PSI("T", "H", h35, "P", p35, wf)
+    t36 = PSI("T", "H", h36, "P", p36, wf)
+    t21 = PSI("T", "H", h21, "P", p21, fluid_TES)
+    t22 = PSI("T", "H", h22, "P", p22, fluid_TES)
+    t38 = PSI("T", "H", h38, "P", p38, wf)
+    t39 = PSI("T", "H", h39, "P", p39, wf)
+    t28 = PSI("T", "H", h28, "P", p28, fluid_TES)
+    t29 = PSI("T", "H", h29, "P", p29, fluid_TES)
 
     s31 = PSI("S", "H", h31, "P", p31, wf)
-    s32 = PSI("S", "H", h32, "P", target_p32, wf)
+    s32 = PSI("S", "H", h32, "P", p32, wf)
     s33 = PSI("S", "H", h33, "P", p33, wf)
     s34 = PSI("S", "H", h34, "P", p34, wf)
     s35 = PSI("S", "H", h35, "P", p35, wf)
     s36 = PSI("S", "H", h36, "P", p36, wf)
     s21 = PSI("S", "H", h21, "P", p21, fluid_TES)
     s22 = PSI("S", "H", h22, "P", p22, fluid_TES)
-    s11 = PSI("S", "H", h11, "P", p11, fluid_ambient)
-    s12 = PSI("S", "H", h12, "P", p12, fluid_ambient)
+    s38 = PSI("S", "H", h38, "P", p38, wf)
+    s39 = PSI("S", "H", h39, "P", p39, wf)
+    s28 = PSI("S", "H", h28, "P", p28, fluid_TES)
+    s29 = PSI("S", "H", h29, "P", p29, fluid_TES)
 
-    df = pd.DataFrame(index=[31, 32, 33, 34, 35, 36, 21, 22, 11, 12],
+    m31 = variables[4]
+
+    df = pd.DataFrame(index=[31, 32, 33, 34, 35, 36, 21, 22, 38, 39, 28, 29],
                       columns=["m [kg/s]", "T [°C]", "h [kJ/kg]", "p [bar]", "s [J/kgK]", "fluid"])
     df.loc[31] = [m31, t31, h31, p31, s31, wf]
-    df.loc[32] = [m31, t32, h32, target_p32, s32, wf]
+    df.loc[32] = [m31, t32, h32, p32, s32, wf]
     df.loc[33] = [m31, t33, h33, p33, s33, wf]
     df.loc[34] = [m31, t34, h34, p34, s34, wf]
     df.loc[35] = [m31, t35, h35, p35, s35, wf]
     df.loc[36] = [m31, t36, h36, p36, s36, wf]
     df.loc[21] = [m21, t21, h21, p21, s21, fluid_TES]
     df.loc[22] = [m21, t22, h22, p21, s22, fluid_TES]
-    df.loc[11] = [m11, t11, h11, p11, s11, fluid_ambient]
-    df.loc[12] = [m11, t12, h12, p12, s12, fluid_ambient]
+    df.loc[38] = [m31, t38, h38, p38, s38, wf]
+    df.loc[39] = [m31, t39, h39, p39, s39, wf]
+    df.loc[28] = [m21, t28, h28, p28, s28, fluid_TES]
+    df.loc[29] = [m21, t29, h29, p29, s29, fluid_TES]
 
     df["T [°C]"] = df["T [°C]"] - 273.15
     df["h [kJ/kg]"] = df["h [kJ/kg]"] * 1e-3
@@ -275,7 +372,7 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
         print(df)
 
     P_comp = df.loc[31, "m [kg/s]"] * (df.loc[31, "h [kJ/kg]"] - df.loc[36, "h [kJ/kg]"])
-    Q_eva = df.loc[11, "m [kg/s]"] * (df.loc[11, "h [kJ/kg]"] - df.loc[12, "h [kJ/kg]"])
+    Q_eva = df.loc[31, "m [kg/s]"] * (df.loc[35, "h [kJ/kg]"] - df.loc[34, "h [kJ/kg]"])
     Q_cond = df.loc[21, "m [kg/s]"] * (df.loc[22, "h [kJ/kg]"] - df.loc[21, "h [kJ/kg]"])
 
     if round(P_comp+Q_eva-Q_cond) > 1e-5:
@@ -283,29 +380,21 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
 
     [min_td_cond, max_td_cond] = qt_diagram(df, 'COND', 31, 32, 21, 22, delta_t_min, 'HP',
                plot=plot, case=f'{case}')
-    qt_diagram(df, 'EVA', 11, 12, 34, 35, delta_t_min, 'HP',
+    qt_diagram(df, 'COND-SH', 31, 38, 29, 22, delta_t_min, 'HP',
+               plot=plot, case=f'{case}')
+    qt_diagram(df, 'COND-ECO', 39, 32, 21, 28, delta_t_min, 'HP',
+               plot=plot, case=f'{case}')
+    qt_diagram(df, 'COND-EVA', 38, 39, 28, 29, delta_t_min, 'HP',
                plot=plot, case=f'{case}')
     qt_diagram(df, 'IHX', 32, 33, 35, 36, delta_t_min, 'HP',
                plot=plot, case=f'{case}')
 
-    print('P = ', m31 * (h31-h36))
+    # print('P = ', m31 * (h31-h36))
 
     return df, min_td_cond
 
 
 def epsilon_func(T_0, p_0, df):
-    h11A = PSI("H", "T", T_0, "P", df.loc[11, 'p [bar]'] * 1e5, df.loc[11, 'fluid']) * 1e-3
-    s11A = PSI("S", "T", T_0, "P", df.loc[11, 'p [bar]'] * 1e5, df.loc[11, 'fluid'])
-    h12A = PSI("H", "T", T_0, "P", df.loc[12, 'p [bar]'] * 1e5, df.loc[12, 'fluid']) * 1e-3
-    s12A = PSI("S", "T", T_0, "P", df.loc[12, 'p [bar]'] * 1e5, df.loc[12, 'fluid'])
-    h_0_ambient_fluid = PSI("H", "T", T_0, "P", p_0, df.loc[11, 'fluid']) * 1e-3
-    s_0_ambient_fluid = PSI("S", "T", T_0, "P", p_0, df.loc[11, 'fluid']) * 1e-3
-
-    e11T = df.loc[11, 'h [kJ/kg]'] - h11A - T_0 * (df.loc[11, 's [J/kgK]'] - s11A) * 1e-3
-    e12T = df.loc[12, 'h [kJ/kg]'] - h12A - T_0 * (df.loc[12, 's [J/kgK]'] - s12A) * 1e-3
-    e11M = h11A - h_0_ambient_fluid - T_0 * (s11A - s_0_ambient_fluid)
-    e12M = h12A - h_0_ambient_fluid - T_0 * (s12A - s_0_ambient_fluid)
-
     h_0_wf = PSI("H", "T", T_0, "P", p_0, df.loc[31, 'fluid']) * 1e-3
     s_0_wf = PSI("S", "T", T_0, "P", p_0, df.loc[31, 'fluid']) * 1e-3
     e31 = df.loc[31, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[31, 's [J/kgK]'] - s_0_wf) * 1e-3
@@ -315,13 +404,10 @@ def epsilon_func(T_0, p_0, df):
     e35 = df.loc[35, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[35, 's [J/kgK]'] - s_0_wf) * 1e-3
     e36 = df.loc[36, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[36, 's [J/kgK]'] - s_0_wf) * 1e-3
 
-    h_0_TES = PSI("H", "T", T_0, "P", p_0, df.loc[11, 'fluid']) * 1e-3
-    s_0_TES = PSI("S", "T", T_0, "P", p_0, df.loc[11, 'fluid']) * 1e-3
+    h_0_TES = PSI("H", "T", T_0, "P", p_0, df.loc[21, 'fluid']) * 1e-3
+    s_0_TES = PSI("S", "T", T_0, "P", p_0, df.loc[21, 'fluid']) * 1e-3
     e21 = df.loc[21, 'h [kJ/kg]'] - h_0_TES - T_0 * (df.loc[21, 's [J/kgK]'] - s_0_TES) * 1e-3
     e22 = df.loc[22, 'h [kJ/kg]'] - h_0_TES - T_0 * (df.loc[22, 's [J/kgK]'] - s_0_TES) * 1e-3
-
-    epsilon_EVA = (df.loc[11, 'm [kg/s]'] * (e12T - e11T) /
-                   (df.loc[31, 'm [kg/s]'] * (e34 - e35) + df.loc[11, 'm [kg/s]'] * (e11M - e12M)))
 
     epsilon_IHX = (e36 - e35) / (e32 - e33)
 
@@ -330,7 +416,6 @@ def epsilon_func(T_0, p_0, df):
     epsilon_COMP = (e31 - e36) / (df.loc[31, 'h [kJ/kg]'] - df.loc[36, 'h [kJ/kg]'])
 
     epsilon = {
-        'EVA': epsilon_EVA,
         'COMP': epsilon_COMP,
         'COND': epsilon_COND,
         'IHX': epsilon_IHX
@@ -340,27 +425,16 @@ def epsilon_func(T_0, p_0, df):
 
 
 # BASE CASE
-p32 = 13 * 1e5  # design variable to optimize
-[df, min_td_cond] = hp_simultaneous(p32, print_results=True, plot=False, case='base', delta_t_min=5)
+p32 = 13 * 1e5
+[df, min_td_cond] = hp_simultaneous(p32, print_results=True, plot=True, case='base', delta_t_min=5)
 round(df, 5).to_csv('hp_simult_strems.csv')
 
-
-# EXERGY ANALYSIS
-T_0 = 283.15  # K
-p_0 = 1.013e5  # Pa
-epsilon = epsilon_func(T_0, p_0, df)
-df_epsilon = pd.DataFrame.from_dict(epsilon, orient='index', columns=['Value'])
-df_epsilon.to_csv('hp_simult_epsilon.csv')
-
-
 # OPTIMIZE p32
-"""
+'''
 # the following method is very basic but seems to work correctly even if it takes a long time
-
 target_min_td_cond = 5
 tolerance = 0.001  # relative to min temperature difference
 learning_rate = 1e4  # relative to p32
-
 diff = abs(min_td_cond - target_min_td_cond)
 step = 0
 
@@ -381,8 +455,8 @@ print("Optimized p32:", p32)
 
 
 [df, min_td_cond] = hp_simultaneous(p32, print_results=True, plot=True, case='base', delta_t_min=5)
-"""
-
+print(df)
+'''
 # the following method doesn't work if the starting value is far away from the optimal value
 '''
 from scipy.optimize import minimize
@@ -408,5 +482,15 @@ result = minimize(objective_function, initial_p32, method='BFGS', jac=numerical_
 optimized_p32 = result.x
 print("Optimized p32:", optimized_p32)
 '''
+
+
+# EXERGY ANALYSIS
+T_0 = 283.15  # K
+p_0 = 1.013e5  # Pa
+epsilon = epsilon_func(T_0, p_0, df)
+df_epsilon = pd.DataFrame.from_dict(epsilon, orient='index', columns=['Value'])
+df_epsilon.to_csv('hp_simult_epsilon.csv')
+
+
 
 
