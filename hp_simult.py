@@ -6,6 +6,8 @@ from func_fix import (pr_func, pr_deriv, eta_s_PUMP_func, eta_s_PUMP_deriv, turb
                          ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
                          x_saturation_func, x_saturation_deriv, qt_diagram)
 
+pd.set_option('display.max_columns', None)
+pd.set_option('display.width', None)
 
 def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
 
@@ -369,7 +371,7 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
     df["p [bar]"] = df["p [bar]"] * 1e-5
 
     if print_results:
-        print(df)
+        print(df.iloc[:, :5])
 
     P_comp = df.loc[31, "m [kg/s]"] * (df.loc[31, "h [kJ/kg]"] - df.loc[36, "h [kJ/kg]"])
     Q_eva = df.loc[31, "m [kg/s]"] * (df.loc[35, "h [kJ/kg]"] - df.loc[34, "h [kJ/kg]"])
@@ -378,20 +380,21 @@ def hp_simultaneous(target_p32, print_results, plot, case, delta_t_min):
     if round(P_comp+Q_eva-Q_cond) > 1e-5:
         print("Energy balances are not fulfilled! :(")
 
+    '''
     [min_td_cond, max_td_cond] = qt_diagram(df, 'COND', 31, 32, 21, 22, delta_t_min, 'HP',
-               plot=plot, case=f'{case}')
-    qt_diagram(df, 'COND-SH', 31, 38, 29, 22, delta_t_min, 'HP',
-               plot=plot, case=f'{case}')
-    qt_diagram(df, 'COND-ECO', 39, 32, 21, 28, delta_t_min, 'HP',
-               plot=plot, case=f'{case}')
-    qt_diagram(df, 'COND-EVA', 38, 39, 28, 29, delta_t_min, 'HP',
-               plot=plot, case=f'{case}')
+               plot=plot, case=f'{case}', step_number=300)
+    [min_td_cond_sh, max_td_cond_sh] = qt_diagram(df, 'COND-SH', 31, 38, 29, 22, delta_t_min, 'HP',
+               plot=plot, case=f'{case}', step_number=300)
+    [min_td_cond_eco, max_td_cond_eco] = qt_diagram(df, 'COND-ECO', 39, 32, 21, 28, delta_t_min, 'HP',
+               plot=plot, case=f'{case}', step_number=300)
+    [min_td_cond_eva, max_td_cond_eva] = qt_diagram(df, 'COND-EVA', 38, 39, 28, 29, delta_t_min, 'HP',
+               plot=plot, case=f'{case}', step_number=300)
     qt_diagram(df, 'IHX', 32, 33, 35, 36, delta_t_min, 'HP',
-               plot=plot, case=f'{case}')
+               plot=plot, case=f'{case}', step_number=300)
+    '''
+    t_pinch_cond_sh = t38-t29
 
-    # print('P = ', m31 * (h31-h36))
-
-    return df, min_td_cond
+    return df, t_pinch_cond_sh
 
 
 def epsilon_func(T_0, p_0, df):
@@ -426,26 +429,26 @@ def epsilon_func(T_0, p_0, df):
 
 # BASE CASE
 p32 = 13 * 1e5
-[df, min_td_cond] = hp_simultaneous(p32, print_results=True, plot=True, case='base', delta_t_min=5)
+[df, min_t_diff_cond] = hp_simultaneous(p32, print_results=True, plot=False, case='base', delta_t_min=5)
 round(df, 5).to_csv('hp_simult_strems.csv')
 
 # OPTIMIZE p32
-'''
-# the following method is very basic but seems to work correctly even if it takes a long time
+
+# the following method is very basic but works quickly
 target_min_td_cond = 5
 tolerance = 0.001  # relative to min temperature difference
 learning_rate = 1e4  # relative to p32
-diff = abs(min_td_cond - target_min_td_cond)
+diff = abs(min_t_diff_cond - target_min_td_cond)
 step = 0
 
 while diff > tolerance:
     # Adjust p32 based on the difference
-    adjustment = (target_min_td_cond - min_td_cond) * learning_rate
+    adjustment = (target_min_td_cond - min_t_diff_cond) * learning_rate
     # adjustment is the smaller, the smaller the difference target_min_td_cond - min_td_cond
     p32 += adjustment
 
-    [df, min_td_cond] = hp_simultaneous(p32, print_results=False, plot=False, case='base', delta_t_min=5)
-    diff = abs(min_td_cond - target_min_td_cond)
+    [df, min_t_diff_cond] = hp_simultaneous(p32, print_results=False, plot=False, case='base', delta_t_min=5)
+    diff = abs(min_t_diff_cond - target_min_td_cond)
 
     step += 1
     print(f"Optimization in progress, step: {step}, diff: {round(diff,5)}")
@@ -454,9 +457,9 @@ print(f"Optimization completed in {step} steps")
 print("Optimized p32:", p32)
 
 
-[df, min_td_cond] = hp_simultaneous(p32, print_results=True, plot=True, case='base', delta_t_min=5)
-print(df)
-'''
+[df, min_t_diff_cond] = hp_simultaneous(p32, print_results=True, plot=False, case='base', delta_t_min=5)
+
+
 # the following method doesn't work if the starting value is far away from the optimal value
 '''
 from scipy.optimize import minimize
@@ -482,7 +485,6 @@ result = minimize(objective_function, initial_p32, method='BFGS', jac=numerical_
 optimized_p32 = result.x
 print("Optimized p32:", optimized_p32)
 '''
-
 
 # EXERGY ANALYSIS
 T_0 = 283.15  # K
