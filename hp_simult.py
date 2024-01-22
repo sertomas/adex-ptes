@@ -459,15 +459,15 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
 
     if plot:
         [min_td_cond, max_td_cond] = qt_diagram(df_streams, 'COND', 31, 32, 21, 22, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=300)
+                   plot=plot, case=f'{case}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_cond_{case}.png")
         [min_td_cond_sh, max_td_cond_sh] = qt_diagram(df_streams, 'COND-SH', 31, 38, 29, 22, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=300)
+                   plot=plot, case=f'{case}', step_number=100)
         [min_td_cond_eco, max_td_cond_eco] = qt_diagram(df_streams, 'COND-ECO', 39, 32, 21, 28, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=300)
+                   plot=plot, case=f'{case}', step_number=100)
         [min_td_cond_eva, max_td_cond_eva] = qt_diagram(df_streams, 'COND-EVA', 38, 39, 28, 29, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=300)
+                   plot=plot, case=f'{case}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_eva_{case}.png")
         qt_diagram(df_streams, 'IHX', 32, 33, 35, 36, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=300)
+                   plot=plot, case=f'{case}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_ihx_{case}.png")
 
     t_pinch_cond_sh = t38-t29
 
@@ -590,13 +590,13 @@ df_epsilon.to_csv('hp_simult_epsilon.csv')
 case = 'COMP'
 [_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_comp=True)
 p32_id_COMP_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 5, adex=True, id_comp=True)
-[_, _, _] = hp_simultaneous(p32_id_COMP_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_comp=True)
+[_, _, _] = hp_simultaneous(p32_id_COMP_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_comp=True, plot=True)
 
 # IDEAL IHX
 case = 'IHX'
 [_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_ihx=True)
 p32_id_IHX_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 5, adex=True, id_ihx=True)
-[df_IHX, _, _] = hp_simultaneous(p32_id_IHX_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_ihx=True)
+[df_IHX, _, _] = hp_simultaneous(p32_id_IHX_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_ihx=True, plot=True)
 df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_IHX), orient='index', columns=['Value'])
 print(df_epsilon)
 
@@ -604,7 +604,7 @@ print(df_epsilon)
 case = 'COND'
 [_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_cond=True)
 p32_id_COND_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 0, adex=True, id_cond=True)
-[df_COND, _, _] = hp_simultaneous(p32_id_COND_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_cond=True)
+[df_COND, _, _] = hp_simultaneous(p32_id_COND_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_cond=True, plot=True)
 df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_COND), orient='index', columns=['Value'])
 print(df_epsilon)
 
@@ -612,7 +612,7 @@ print(df_epsilon)
 case = 'VAL'
 [_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_val=True)
 p32_id_val_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 5, adex=True, id_val=True)
-[df_IHX, _, _] = hp_simultaneous(p32_id_val_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_val=True)
+[df_IHX, _, _] = hp_simultaneous(p32_id_val_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_val=True, plot=True)
 df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_IHX), orient='index', columns=['Value'])
 print(df_epsilon)
 
@@ -620,7 +620,7 @@ print(df_epsilon)
 case = 'EVA'
 [_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_eva=True)
 p32_id_eva_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 5, adex=True, id_eva=True)
-[df_EVA, _, _] = hp_simultaneous(p32_id_eva_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_eva=True)
+[df_EVA, _, _] = hp_simultaneous(p32_id_eva_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_eva=True, plot=True)
 df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_EVA), orient='index', columns=['Value'])
 print(df_epsilon)
 
@@ -631,6 +631,6 @@ case = 'COMP_COND_IHX_VAL_EVA'
 p32_id_COMP_COND_IHX_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 0,
                                         adex=True, id_comp=True, id_cond=True, id_ihx=True, id_val=True, id_eva=True)
 [df_ideal, _, _] = hp_simultaneous(p32_id_COMP_COND_IHX_opt, print_results=True, case=f'optimal id_{case}',
-                                   adex=True, id_comp=True, id_cond=True, id_ihx=True, id_val=True, id_eva=True)
+                                   adex=True, id_comp=True, id_cond=True, id_ihx=True, id_val=True, id_eva=True, plot=True)
 df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_ideal), orient='index', columns=['Value'])
 print(df_epsilon)
