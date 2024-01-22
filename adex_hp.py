@@ -10,7 +10,6 @@ from func_fix import (pr_func, pr_deriv, eta_s_PUMP_func, eta_s_PUMP_deriv, turb
 T_0 = 283.15
 
 epsilon = pd.read_csv("hp_simult_epsilon.csv", index_col=0)["Value"]
-print("epsilon_EVA = ", round(epsilon["EVA"], 5))
 print("epsilon_IHX = ", round(epsilon["IHX"], 5))
 print("epsilon_COND = ", round(epsilon["COND"], 5))
 print("epsilon_COMP = ", round(epsilon["COMP"], 5))
@@ -21,7 +20,7 @@ fluid_ambient = "REFPROP::air"
 
 # TES
 t21 = 70 + 273.15  # input is known
-p21 = 5 * 1e5  # input is known
+p21 = 5e5  # input is known
 t22 = 140 + 273.15  # output temperature is set
 m21 = 10  # dimensioning of the system (full load)
 
@@ -31,27 +30,27 @@ pr_cond_hot = 0.95
 pr_ihx_hot = 0.985
 pr_ihx_cold = 0.985
 pr_eva_cold = 0.95
-pr_eva_hot = 1
+
+pr_cond_part_cold = np.cbrt(pr_cond_cold)  # COND pressure drop is split equally (geom, mean) between ECO-EVA-SH
+pr_cond_part_hot = np.cbrt(pr_cond_hot)  # COND pressure drop is split equally (geom, mean) between ECO-EVA-SH
 
 # AMBIENT
-t11 = 10 + 273.15  # input is known
-p11 = 1.013 * 1e5  # input is known
-t12 = 7 + 273.15  # output temperature is set
+t0 = 25 + 273.15  # K
+p0 = 1.013e5  # bar
 
 # HEAT PUMP
-ttd_l_COND = 5
-ttd_u_IHX = 5
-ttd_l_EVA = 5
-target_p32 = 13 * 1e5  # design variable to optimize
+ttd_l_cond = 5  # K
+ttd_u_ihx = 5  # K
+ttd_l_eva = 5  # K
+target_p32 = 14.501436 * 1e5  # from optimal base case
 
 # TECHNICAL PARAMETERS
-# eta_s = 0.844949  # --> it seems to be different from TESPy results (look T_31)
 eta_s = 0.85
 
 # pre-calculation
-t32 = t21 + ttd_l_COND
-t34 = t12 - ttd_l_EVA
-t36 = t32 - ttd_u_IHX
+t32 = t21 + ttd_l_cond
+t34 = t0 - ttd_l_eva
+t36 = t32 - ttd_u_ihx
 
 # STARTING VALUES
 h31 = 525.480e3

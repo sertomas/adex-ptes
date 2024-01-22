@@ -638,6 +638,10 @@ def valve_bal(df_comps, df_conns, inlet, outlet, label):
                 df_conns.loc[inlet, 's [J/kgK]'] - df_conns.loc[outlet, 's [J/kgK]']) * 1e-3
 
 
+#
+#
+#
+#
 # FUNCTIONS FOR SIMULTANEOUS SOLUTION
 def pr_func(pr, p_1, p_2):
     return pr * p_1 - p_2
@@ -687,6 +691,19 @@ def turbo_func(P, m, h_1, h_2):
 def turbo_deriv(P, m, h_1, h_2):
     return {
         "P": 1,
+        "m": (h_1 - h_2),
+        "h_1": m,
+        "h_2": -m
+    }
+
+
+def simple_he_func(Q, m, h_1, h_2):
+    return Q + m * (h_1 - h_2)
+
+
+def simple_he_deriv(Q, m, h_1, h_2):
+    return {
+        "Q": 1,
         "m": (h_1 - h_2),
         "h_1": m,
         "h_2": -m
