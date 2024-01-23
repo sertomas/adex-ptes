@@ -1,6 +1,8 @@
 import numpy as np
 from CoolProp.CoolProp import PropsSI as PSI
-from scipy.optimize import minimize
+import itertools
+import multiprocessing
+import time
 import pandas as pd
 from func_fix import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor_deriv, turbo_func, turbo_deriv, he_func,
                       he_deriv, ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
@@ -8,16 +10,21 @@ from func_fix import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor
                       eps_real_he_func, eps_real_he_deriv, eps_real_ihx_func, eps_real_ihx_deriv, simple_he_func,
                       simple_he_deriv, ideal_ihx_entropy_func, ideal_ihx_entropy_deriv, ideal_he_entropy_func,
                       ideal_he_entropy_deriv, ideal_valve_entropy_func, ideal_valve_entropy_deriv, he_with_p_func,
-                      he_with_p_deriv)
+                      he_with_p_deriv, same_temperature_func, same_temperature_deriv)
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
 
 
-def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, id_ihx=False, id_cond=False, 
-                    id_val=False, id_eva=False, plot=False, delta_t_min=5):
-    
-    epsilon = pd.read_csv("hp_simult_epsilon.csv", index_col=0)["Value"]
+def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=False):
+
+    try:
+        epsilon = pd.read_csv("outputs/adex_hp/hp_epsilon_real.csv", index_col=0)["Value"]  # from base case
+        # Additional code to process epsilon if needed
+    except FileNotFoundError:
+        print("File not found. Please run base case model first!")
+        # Handle the exception (e.g., set epsilon to None or a default value)
+        epsilon = None
 
     wf = "REFPROP::R1336MZZZ"
     fluid_tes = "REFPROP::water"
@@ -29,19 +36,19 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
     m21 = 10             # dimensioning of the system (full load)
 
     # PRESSURE DROPS
-    if id_cond:
+    if config["cond"]:
         pr_cond_cold = 1
         pr_cond_hot = 1
     else:
         pr_cond_cold = 1
         pr_cond_hot = 0.95
-    if id_ihx:
+    if config["ihx"]:
         pr_ihx_hot = 1
         pr_ihx_cold = 1
     else:
         pr_ihx_hot = 0.985
         pr_ihx_cold = 0.985
-    if id_eva:
+    if config["eva"]:
         pr_eva_cold = 1
     else:
         pr_eva_cold = 0.95
@@ -54,23 +61,27 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
     p0 = 1.013e5        # bar
 
     # HEAT PUMP
-    if id_cond:
+    if config["cond"]:
         ttd_l_cond = 0  # K
     else:
         ttd_l_cond = 5  # K
 
-    if id_ihx:
+    if config["ihx"]:
         ttd_u_ihx = 0   # K
     else:
         ttd_u_ihx = 5   # K
 
-    if id_eva:
+    if config["eva"]:
         ttd_l_eva = 0   # K
     else:
         ttd_l_eva = 5   # K
 
     # TECHNICAL PARAMETERS
     eta_s = 0.85
+    if config["cond"]:
+        delta_t_min = 5
+    else:
+        delta_t_min = 0
 
     # PRE-CALCULATION
     t32 = t21 + ttd_l_cond
@@ -119,20 +130,22 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         #        16,  17   18   19   20   21   22   23          24
 
         #   0
-        if adex and id_comp:
+        if adex and config["comp"]:
             t31_calc_comp = eps_compressor_func(1, variables[0], variables[10], variables[1], variables[2], wf)
-        elif adex and not id_comp:
+        elif adex and not config["comp"]:
             t31_calc_comp = eps_compressor_func(epsilon['COMP'], variables[0], variables[10], variables[1], variables[2], wf)
         else:
             t31_calc_comp = eta_s_compressor_func(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
         #   1
-        if adex and not id_ihx:
+        if adex and config["ihx"]:
+            t36_set = same_temperature_func(variables[3], target_p32, wf, variables[0], variables[10], wf)
+        elif adex and not config["ihx"]:
             t36_set = eps_real_ihx_func(epsilon['IHX'], variables[3], target_p32, variables[8], variables[11], wf,
                                         variables[9], variables[15], variables[0], variables[10], wf)
         else:
             t36_set = temperature_func(t36, variables[0], variables[10], wf)
         #   2
-        if adex and not id_cond:
+        if adex and not config["cond"]:
             t32_set = eps_real_he_func(epsilon['COND'], variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                        variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
@@ -142,7 +155,7 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         #   4
         power_calc_comp = turbo_func(variables[5], variables[4], variables[0], variables[1])
         #   5
-        if adex and id_cond:
+        if adex and config["cond"]:
             m31_calc_cond = ideal_he_entropy_func(variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                                   variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
@@ -158,7 +171,7 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         #   10
         p33_set = pr_func(pr_ihx_hot, target_p32, variables[11])
         #   11
-        if adex and id_val:
+        if adex and config["val"]:
             t34_calc_valve = ideal_valve_entropy_func(variables[8], variables[11], variables[12], variables[13], wf)
         else:
             t34_calc_valve = valve_func(variables[8], variables[12])
@@ -194,20 +207,22 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         jacobian = np.zeros((len(variables), len(variables)))
 
         #   0
-        if adex and id_comp:
+        if adex and config["comp"]:
             t31_calc_comp_j = eps_compressor_deriv(1, variables[0], variables[10], variables[1], variables[2], wf)
-        elif adex and not id_comp:
+        elif adex and not config["comp"]:
             t31_calc_comp_j = eps_compressor_deriv(epsilon['COMP'], variables[0], variables[10], variables[1], variables[2], wf)
         else:
             t31_calc_comp_j = eta_s_compressor_deriv(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
         #   1
-        if adex and not id_ihx:
+        if adex and config["ihx"]:
+            t36_set_j = same_temperature_deriv(variables[3], target_p32, wf, variables[0], variables[10], wf)
+        elif adex and not config["ihx"]:
             t36_set_j = eps_real_ihx_deriv(epsilon['IHX'], variables[3], target_p32, variables[8], variables[11], wf,
                                            variables[9], variables[15], variables[0], variables[10], wf)
         else:
             t36_set_j = temperature_deriv(t36, variables[0], variables[10], wf)
         #   2
-        if adex and not id_cond:
+        if adex and not config["cond"]:
             t32_set_j = eps_real_he_deriv(epsilon['COND'], variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                           variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
@@ -217,7 +232,7 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         #   4
         power_calc_comp_j = turbo_deriv(variables[5], variables[4], variables[0], variables[1])
         #   5
-        if adex and id_cond:
+        if adex and config["cond"]:
             m31_calc_cond_j = ideal_he_entropy_deriv(variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                                      variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
@@ -233,7 +248,7 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         #   10
         p33_set_j = pr_deriv(pr_ihx_hot, target_p32, variables[11])
         #   11
-        if adex and id_val:
+        if adex and config["val"]:
             t34_calc_valve_j = ideal_valve_entropy_deriv(variables[8], variables[11], variables[12], variables[13], wf)
         else:
             t34_calc_valve_j = valve_deriv(variables[8], variables[12])
@@ -266,12 +281,16 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
         #       h38, h39, h28, h29, p38, p39, p28, p29,     power_cond])]
         #        16,  17   18   19   20   21   22   23          24
-        
+
         jacobian[0, 0] = t31_calc_comp_j["h_1"]  # derivative of t31_calc_comp with respect to h36
         jacobian[0, 10] = t31_calc_comp_j["p_1"]  # derivative of t31_calc_comp with respect to p36
         jacobian[0, 1] = t31_calc_comp_j["h_2"]  # derivative of t31_calc_comp with respect to h31
         jacobian[0, 2] = t31_calc_comp_j["p_2"]  # derivative of t31_calc_comp with respect to p31
-        if adex and not id_ihx:
+        if adex and config["ihx"]:
+            jacobian[1, 3] = t36_set_j["h_copy"]  # derivative of t36_set with respect to h36
+            jacobian[1, 0] = t36_set_j["h_paste"]  # derivative of t36_set with respect to p36
+            jacobian[1, 10] = t36_set_j["p_paste"]  # derivative of t36_set with respect to h36
+        elif adex and not config["ihx"]:
             jacobian[1, 3] = t36_set_j["h_hot_in"]  # derivative of t36_set with respect to h36
             jacobian[1, 8] = t36_set_j["h_hot_out"]  # derivative of t36_set with respect to p36
             jacobian[1, 11] = t36_set_j["p_hot_out"]  # derivative of t36_set with respect to h36
@@ -282,7 +301,7 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         else:
             jacobian[1, 0] = t36_set_j["h"]  # derivative of t36_set with respect to h36
             jacobian[1, 10] = t36_set_j["p"]  # derivative of t36_set with respect to p36
-        if adex and not id_cond:
+        if adex and not config["cond"]:
             jacobian[2, 1] = t32_set_j["h_hot_in"]  # derivative of m31_calc_cond with respect to h31
             jacobian[2, 2] = t32_set_j["p_hot_in"]  # derivative of m31_calc_cond with respect to h32
             jacobian[2, 3] = t32_set_j["h_hot_out"]  # derivative of m31_calc_cond with respect to m31
@@ -297,7 +316,7 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         jacobian[4, 4] = power_calc_comp_j["m"]  # derivative of power_calc_comp with respect to m31
         jacobian[4, 0] = power_calc_comp_j["h_1"]  # derivative of power_calc_comp with respect to h36
         jacobian[4, 1] = power_calc_comp_j["h_2"]  # derivative of power_calc_comp with respect to h31
-        if adex and id_cond:
+        if adex and config["cond"]:
             jacobian[5, 1] = m31_calc_cond_j["h_hot_in"]  # derivative of m31_calc_cond with respect to h31
             jacobian[5, 2] = m31_calc_cond_j["p_hot_in"]  # derivative of m31_calc_cond with respect to h32
             jacobian[5, 3] = m31_calc_cond_j["h_hot_out"]  # derivative of m31_calc_cond with respect to h32
@@ -321,7 +340,7 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         jacobian[9, 10] = p36_set_j["p_2"]  # derivative of p36_set with respect to p36
         jacobian[9, 15] = p36_set_j["p_1"]  # derivative of p36_set with respect to p35
         jacobian[10, 11] = p33_set_j["p_2"]  # derivative of p33_set with respect to p33
-        if adex and id_val:
+        if adex and config["val"]:
             jacobian[11, 8] = t34_calc_valve_j["h_1"]  # derivative of t34_calc_valve with respect to h33
             jacobian[11, 11] = t34_calc_valve_j["p_1"]  # derivative of t34_calc_valve with respect to p33
             jacobian[11, 12] = t34_calc_valve_j["h_2"]  # derivative of t34_calc_valve with respect to h34
@@ -359,7 +378,7 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
         jacobian[23, 23] = p29_set_j["p_2"]
 
         # Save the DataFrame as a CSV file
-        pd.DataFrame(jacobian).round(4).to_csv('jacobian_hp.csv', index=False)
+        # pd.DataFrame(jacobian).round(4).to_csv('jacobian_hp.csv', index=False)
 
         variables -= np.linalg.inv(jacobian).dot(residual)
 
@@ -446,28 +465,31 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
     df_streams["p [bar]"] = df_streams["p [bar]"] * 1e-5
 
     if print_results:
-        print("-------------------------------------------------------------\n", case, "case")
+        print("-------------------------------------------------------------\n", "case:", label)
         print(df_streams.iloc[:, :5])
         print("-------------------------------------------------------------")
 
     power_comp = df_streams.loc[31, "m [kg/s]"] * (df_streams.loc[31, "h [kJ/kg]"] - df_streams.loc[36, "h [kJ/kg]"])
     heat_eva = df_streams.loc[31, "m [kg/s]"] * (df_streams.loc[35, "h [kJ/kg]"] - df_streams.loc[34, "h [kJ/kg]"])
     heat_cond = df_streams.loc[21, "m [kg/s]"] * (df_streams.loc[22, "h [kJ/kg]"] - df_streams.loc[21, "h [kJ/kg]"])
+    power_cond = (df_streams.loc[31, "m [kg/s]"] * (df_streams.loc[31, "h [kJ/kg]"] - df_streams.loc[32, "h [kJ/kg]"])
+                  + df_streams.loc[21, "m [kg/s]"] * (df_streams.loc[21, "h [kJ/kg]"] - df_streams.loc[22, "h [kJ/kg]"]))
+    power_val = df_streams.loc[31, "m [kg/s]"] * (df_streams.loc[33, "h [kJ/kg]"] - df_streams.loc[34, "h [kJ/kg]"])
 
-    if round(power_comp+heat_eva-heat_cond) > 1e-5:
+    if abs(power_comp+heat_eva-heat_cond-power_cond-power_val) > 1e-4:
         print("Energy balances are not fulfilled! :(")
 
     if plot:
         [min_td_cond, max_td_cond] = qt_diagram(df_streams, 'COND', 31, 32, 21, 22, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_cond_{case}.png")
+                   plot=plot, case=f'{label}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_cond_{label}.png")
         [min_td_cond_sh, max_td_cond_sh] = qt_diagram(df_streams, 'COND-SH', 31, 38, 29, 22, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=100)
+                   plot=plot, case=f'{label}', step_number=100)
         [min_td_cond_eco, max_td_cond_eco] = qt_diagram(df_streams, 'COND-ECO', 39, 32, 21, 28, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=100)
+                   plot=plot, case=f'{label}', step_number=100)
         [min_td_cond_eva, max_td_cond_eva] = qt_diagram(df_streams, 'COND-EVA', 38, 39, 28, 29, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_eva_{case}.png")
+                   plot=plot, case=f'{label}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_eva_{label}.png")
         qt_diagram(df_streams, 'IHX', 32, 33, 35, 36, delta_t_min, 'HP',
-                   plot=plot, case=f'{case}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_ihx_{case}.png")
+                   plot=plot, case=f'{label}', step_number=100, path=f"outputs/diagrams/adex_hp_qt_ihx_{label}.png")
 
     t_pinch_cond_sh = t38-t29
 
@@ -479,42 +501,59 @@ def hp_simultaneous(target_p32, print_results, case, adex=False, id_comp=False, 
     return df_streams, t_pinch_cond_sh, cop
 
 
-def epsilon_func(T_0, p_0, df):
-    h_0_wf = PSI("H", "T", T_0, "P", p_0, df.loc[31, 'fluid']) * 1e-3
-    s_0_wf = PSI("S", "T", T_0, "P", p_0, df.loc[31, 'fluid']) * 1e-3
-    e31 = df.loc[31, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[31, 's [J/kgK]'] - s_0_wf) * 1e-3
-    e32 = df.loc[32, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[32, 's [J/kgK]'] - s_0_wf) * 1e-3
-    e33 = df.loc[33, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[33, 's [J/kgK]'] - s_0_wf) * 1e-3
-    e34 = df.loc[34, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[34, 's [J/kgK]'] - s_0_wf) * 1e-3
-    e35 = df.loc[35, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[35, 's [J/kgK]'] - s_0_wf) * 1e-3
-    e36 = df.loc[36, 'h [kJ/kg]'] - h_0_wf - T_0 * (df.loc[36, 's [J/kgK]'] - s_0_wf) * 1e-3
+def epsilon_func(t0, p0, df):
 
-    h0_tes = PSI("H", "T", T_0, "P", p_0, df.loc[21, 'fluid']) * 1e-3
-    s0_tes = PSI("S", "T", T_0, "P", p_0, df.loc[21, 'fluid']) * 1e-3
-    e21 = df.loc[21, 'h [kJ/kg]'] - h0_tes - T_0 * (df.loc[21, 's [J/kgK]'] - s0_tes) * 1e-3
-    e22 = df.loc[22, 'h [kJ/kg]'] - h0_tes - T_0 * (df.loc[22, 's [J/kgK]'] - s0_tes) * 1e-3
+    h0_wf = PSI("H", "T", t0, "P", p0, df.loc[31, 'fluid']) * 1e-3
+    s0_wf = PSI("S", "T", t0, "P", p0, df.loc[31, 'fluid'])
+    h0_tes = PSI("H", "T", t0, "P", p0, df.loc[21, 'fluid']) * 1e-3
+    s0_tes = PSI("S", "T", t0, "P", p0, df.loc[21, 'fluid'])
+    
+    for i in [31, 32, 33, 34, 35, 36, 38, 39]:
+        df.loc[i, 'e^PH [kJ/kg]'] = df.loc[i, 'h [kJ/kg]'] - h0_wf - t0 * (df.loc[i, 's [J/kgK]'] - s0_wf) * 1e-3
+    for i in [21, 22, 28, 29]:
+        df.loc[i, 'e^PH [kJ/kg]'] = df.loc[i, 'h [kJ/kg]'] - h0_tes - t0 * (df.loc[i, 's [J/kgK]'] - s0_tes) * 1e-3
 
-    epsilon_ihx = (e36 - e35) / (e32 - e33)
+    epsilon_ihx = ((df.loc[36, 'e^PH [kJ/kg]'] - df.loc[35, 'e^PH [kJ/kg]']) 
+                   / (df.loc[32, 'e^PH [kJ/kg]'] - df.loc[33, 'e^PH [kJ/kg]']))
 
-    epsilon_cond = (df.loc[21, 'm [kg/s]'] * (e22 - e21)) / (df.loc[31, 'm [kg/s]'] * (e31 - e32))
+    epsilon_cond = ((df.loc[21, 'm [kg/s]'] * (df.loc[22, 'e^PH [kJ/kg]'] - df.loc[21, 'e^PH [kJ/kg]']))
+                    / (df.loc[31, 'm [kg/s]'] * (df.loc[31, 'e^PH [kJ/kg]'] - df.loc[32, 'e^PH [kJ/kg]'])))
 
-    epsilon_comp = (e31 - e36) / (df.loc[31, 'h [kJ/kg]'] - df.loc[36, 'h [kJ/kg]'])
+    epsilon_comp = ((df.loc[31, 'e^PH [kJ/kg]'] - df.loc[36, 'e^PH [kJ/kg]'])
+                    / (df.loc[31, 'h [kJ/kg]'] - df.loc[36, 'h [kJ/kg]']))
+
+    if t0-273.15-1e-2 < df.loc[34, 'T [°C]'] < t0-273.15+1e-2:
+        epsilon_val = None
+    else:
+        h33a = PSI("H", "T", t0, "P", df.loc[33, 'p [bar]'] * 1e5, df.loc[33, 'fluid']) * 1e-3
+        s33a = PSI("S", "T", t0, "P", df.loc[33, 'p [bar]'] * 1e5, df.loc[33, 'fluid'])
+        h34a = PSI("H", "T", t0, "P", df.loc[34, 'p [bar]'] * 1e5, df.loc[34, 'fluid']) * 1e-3
+        s34a = PSI("S", "T", t0, "P", df.loc[34, 'p [bar]'] * 1e5, df.loc[34, 'fluid'])
+        e33t = df.loc[33, 'h [kJ/kg]'] - h33a - t0 * (df.loc[33, 's [J/kgK]'] - s33a) * 1e-3
+        e34t = df.loc[34, 'h [kJ/kg]'] - h34a - t0 * (df.loc[34, 's [J/kgK]'] - s34a) * 1e-3
+        e33m = h33a - h0_wf - t0 * (s33a - s0_wf) * 1e-3
+        e34m = h34a - h0_wf - t0 * (s34a - s0_wf) * 1e-3
+        epsilon_val = e34t / (e33t + e33m - e34m)
 
     epsilon_components = {
         'COMP': epsilon_comp,
         'COND': epsilon_cond,
-        'IHX': epsilon_ihx
+        'IHX': epsilon_ihx,
+        'VAL': epsilon_val
     }
 
     return epsilon_components
 
 
-def find_opt_p32(p32_opt_start, min_t_diff_cond_start, target_min_td_cond, adex=False,
-                 id_comp=False, id_cond=False, id_ihx=False, id_val=False, id_eva=False):
+def find_opt_p32(p32_opt_start, min_t_diff_cond_start, config, label, adex=False):
 
-    min_t_diff_cond = min_t_diff_cond_start
+    if config["cond"]:
+        target_min_td_cond = 0
+    else:
+        target_min_td_cond = 5
+    min_t_diff_cond = target_min_td_cond
     p32_opt = p32_opt_start
-    tolerance = 0.001  # relative to min temperature difference
+    tolerance = 1e-3  # relative to min temperature difference
     learning_rate = 1e4  # relative to p32
     diff = abs(min_t_diff_cond_start - target_min_td_cond)
     step = 0
@@ -525,12 +564,11 @@ def find_opt_p32(p32_opt_start, min_t_diff_cond_start, target_min_td_cond, adex=
         # adjustment is the smaller, the smaller the difference target_min_td_cond - min_td_cond
         p32_opt += adjustment
 
-        [_, min_t_diff_cond, cop] = hp_simultaneous(p32_opt, print_results=False, case='optimal base', adex=adex,
-                                                    id_comp=id_comp, id_cond=id_cond, id_ihx=id_ihx, id_val=id_val, id_eva=id_eva)
+        [_, min_t_diff_cond, cop] = hp_simultaneous(p32_opt, print_results=False, label=label, config=config, adex=adex)
         diff = abs(min_t_diff_cond - target_min_td_cond)
 
         step += 1
-        print(f"Optimization in progress: step = {step}, diff = {round(diff,5)}, p32 = {round(p32_opt*1e-5, 4)} bar, COP = {round(cop, 4)}.")
+        print(f"Optimization in progress for {label}: step = {step}, diff = {round(diff,6)}, p32 = {round(p32_opt*1e-5, 4)} bar, COP = {round(cop, 4)}.")
 
     print(f"Optimization completed successfully in {step} steps!")
     print("Optimal p32:", round(p32_opt*1e-5, 4), "bar.")
@@ -538,99 +576,92 @@ def find_opt_p32(p32_opt_start, min_t_diff_cond_start, target_min_td_cond, adex=
     return p32_opt
 
 
+def set_adex_config(*args):
+    # Define all keys with a default value of False
+    config_keys = ['comp', 'cond', 'ihx', 'val', 'eva']
+    config = {key: False for key in config_keys}
+
+    # Mapping of keys to label substrings
+    label_mappings = {
+        'comp': 'COMP',
+        'cond': 'COND',
+        'ihx': 'IHX',
+        'val': 'VAL',
+        'eva': 'EVA'
+    }
+
+    # Set the keys provided in args to True
+    for arg in args:
+        if arg in config:
+            config[arg] = True
+        else:
+            print(f"Warning: '{arg}' is not a valid key. It has been ignored.")
+
+    # Generate the label
+    label_parts = []
+    for key, value in config.items():
+        if value:
+            label_parts.append(label_mappings.get(key, ''))
+
+    label = '_'.join(label_parts)
+
+    if label == "":
+        label = "real"
+    elif all(config.values()):
+        label = "ideal"
+
+    return config, label
+
+
+def perform_adex_hp(p32_start, config, label, adex=False, save=False, print_results=False, calc_epsilon=False):
+    [_, target_diff, _] = hp_simultaneous(p32_start, print_results=print_results, config=config, label=label, adex=adex)
+    p32_opt = find_opt_p32(p32_start, target_diff, config=config, label=label, adex=adex)
+    [df_opt, _, _] = hp_simultaneous(p32_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
+    if calc_epsilon:
+        t0 = 283.15   # K
+        p0 = 1.013e5  # Pa
+        df_epsilon = pd.DataFrame.from_dict(epsilon_func(t0, p0, df_opt), orient='index', columns=['Value'])
+        df_epsilon.to_csv(f'outputs/adex_hp/hp_epsilon_{label}.csv')
+    if df_opt.loc[32, "T [°C]"] < df_opt.loc[21, "T [°C]"] - 1e-3:
+        print("Error: Lower temperature difference in COND is negative!")
+    if df_opt.loc[31, "T [°C]"] < df_opt.loc[22, "T [°C]"] - 1e-3:
+        print("Error: Upper temperature difference in COND is negative!")
+    if df_opt.loc[32, "T [°C]"] < df_opt.loc[36, "T [°C]"] - 1e-3:
+        print("Error: Upper temperature difference in IHX is negative!")
+    if df_opt.loc[33, "T [°C]"] < df_opt.loc[35, "T [°C]"] - 1e-3:
+        print("Error: Lower temperature difference in IHX is negative!")
+    if save:
+        round(df_opt, 5).to_csv(f'outputs/adex_hp/hp_streams_{label}.csv')
+
+
+# BEGIN OF MAIN --------------------------------------------------------------------------------------------------------
+start = time.perf_counter()
+
 # BASE CASE
-p32 = 13 * 1e5
-[df_base, min_t_diff_cond, _] = hp_simultaneous(p32, print_results=True, case='base')
+[config_base, label_base] = set_adex_config()
+perform_adex_hp(13e5, config_base, label_base, adex=False, save=True, print_results=True, calc_epsilon=True)
 
 
-# OPTIMIZE p32 with respect to min. temp. diff. in COND
-
-# the following method is very basic but works
-p32_base_opt = find_opt_p32(p32, min_t_diff_cond, 5)
-[df_base_opt, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case='optimal base')
-round(df_base_opt, 5).to_csv('hp_simult_strems.csv')
-
-# the following method doesn't work if the starting value is far away from the optimal value
-'''
-from scipy.optimize import minimize
-target_min_td_cond = 5
+# IDEAL CASE
+[config_base, label_base] = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
+perform_adex_hp(13e5, config_base, label_base, adex=False, save=True, print_results=True, calc_epsilon=True)
 
 
-def objective_function(p32):
-    _, min_td_cond = hp_simultaneous(p32, print_results=False, plot=False, case='base', delta_t_min=5)
-    return abs(min_td_cond - target_min_td_cond)
+# ADVANCED EXERGY ANALYSIS -- single components
+components = ['comp', 'cond', 'ihx', 'val', 'eva']
+for component in components:
+    config_i, label_i = set_adex_config(component)
+    perform_adex_hp(13e5, config_i, label_i, adex=True, save=True, print_results=True, calc_epsilon=True)
 
 
-def numerical_gradient(p32, epsilon=1e-6):
-    grad = (objective_function(p32 + epsilon) - objective_function(p32 - epsilon)) / (2 * epsilon)
-    return grad
+# ADVANCED EXERGY ANALYSIS -- pair of components
+component_pairs = list(itertools.combinations(components, 2))
+for pair in component_pairs:
+    config_i, label_i = set_adex_config(*pair)
+    perform_adex_hp(13e5, config_i, label_i, adex=True, save=True, print_results=True, calc_epsilon=True)
 
 
-# Initial guess for p32
-initial_p32 = 12.5 * 1e5
+# END OF MAIN ----------------------------------------------------------------------------------------------------------
+end = time.perf_counter()
+print(f"Elapsed time: {round(end - start, 3)} seconds.")
 
-# Using BFGS algorithm for optimization
-result = minimize(objective_function, initial_p32, method='BFGS', jac=numerical_gradient)
-
-optimized_p32 = result.x
-print("Optimized p32:", optimized_p32)
-'''
-
-
-# EXERGY ANALYSIS
-T_0 = 283.15  # K
-p_0 = 1.013e5  # Pa
-df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_base_opt), orient='index', columns=['Value'])
-df_epsilon.to_csv('hp_simult_epsilon.csv')
-
-
-# ADVANCED EXERGY ANALYSIS
-
-#IDEAL COMP
-case = 'COMP'
-[_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_comp=True)
-p32_id_COMP_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 5, adex=True, id_comp=True)
-[_, _, _] = hp_simultaneous(p32_id_COMP_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_comp=True, plot=True)
-
-# IDEAL IHX
-case = 'IHX'
-[_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_ihx=True)
-p32_id_IHX_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 5, adex=True, id_ihx=True)
-[df_IHX, _, _] = hp_simultaneous(p32_id_IHX_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_ihx=True, plot=True)
-df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_IHX), orient='index', columns=['Value'])
-print(df_epsilon)
-
-# IDEAL COND
-case = 'COND'
-[_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_cond=True)
-p32_id_COND_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 0, adex=True, id_cond=True)
-[df_COND, _, _] = hp_simultaneous(p32_id_COND_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_cond=True, plot=True)
-df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_COND), orient='index', columns=['Value'])
-print(df_epsilon)
-
-# IDEAL VAL
-case = 'VAL'
-[_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_val=True)
-p32_id_val_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 5, adex=True, id_val=True)
-[df_IHX, _, _] = hp_simultaneous(p32_id_val_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_val=True, plot=True)
-df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_IHX), orient='index', columns=['Value'])
-print(df_epsilon)
-
-# IDEAL EVA
-case = 'EVA'
-[_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_eva=True)
-p32_id_eva_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 5, adex=True, id_eva=True)
-[df_EVA, _, _] = hp_simultaneous(p32_id_eva_opt, print_results=True, case=f'optimal id_{case}', adex=True, id_eva=True, plot=True)
-df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_EVA), orient='index', columns=['Value'])
-print(df_epsilon)
-
-# IDEAL COMP, COND, IHX, VAL
-case = 'COMP_COND_IHX_VAL_EVA'
-[_, min_t_diff_cond, _] = hp_simultaneous(p32_base_opt, print_results=True, case=f"id_{case}", adex=True, id_comp=True,
-                                          id_cond=True, id_ihx=True, id_val=True, id_eva=True)
-p32_id_COMP_COND_IHX_opt = find_opt_p32(p32_base_opt, min_t_diff_cond, 0,
-                                        adex=True, id_comp=True, id_cond=True, id_ihx=True, id_val=True, id_eva=True)
-[df_ideal, _, _] = hp_simultaneous(p32_id_COMP_COND_IHX_opt, print_results=True, case=f'optimal id_{case}',
-                                   adex=True, id_comp=True, id_cond=True, id_ihx=True, id_val=True, id_eva=True, plot=True)
-df_epsilon = pd.DataFrame.from_dict(epsilon_func(T_0, p_0, df_ideal), orient='index', columns=['Value'])
-print(df_epsilon)
