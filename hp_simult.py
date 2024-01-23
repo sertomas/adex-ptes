@@ -53,8 +53,8 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
     else:
         pr_eva_cold = 0.95
 
-    pr_cond_part_cold = np.cbrt(pr_cond_cold)  # COND pressure drop is split equally (geom, mean) between ECO-EVA-SH
-    pr_cond_part_hot = np.cbrt(pr_cond_hot)    # COND pressure drop is split equally (geom, mean) between ECO-EVA-SH
+    pr_cond_part_cold = np.cbrt(pr_cond_cold)  # cond pressure drop is split equally (geom, mean) between ECO-EVA-SH
+    pr_cond_part_hot = np.cbrt(pr_cond_hot)    # cond pressure drop is split equally (geom, mean) between ECO-EVA-SH
 
     # AMBIENT
     t0 = 10 + 273.15    # K
@@ -133,20 +133,20 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         if adex and config["comp"]:
             t31_calc_comp = eps_compressor_func(1, variables[0], variables[10], variables[1], variables[2], wf)
         elif adex and not config["comp"]:
-            t31_calc_comp = eps_compressor_func(epsilon['COMP'], variables[0], variables[10], variables[1], variables[2], wf)
+            t31_calc_comp = eps_compressor_func(epsilon['comp'], variables[0], variables[10], variables[1], variables[2], wf)
         else:
             t31_calc_comp = eta_s_compressor_func(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
         #   1
         if adex and config["ihx"]:
             t36_set = same_temperature_func(variables[3], target_p32, wf, variables[0], variables[10], wf)
         elif adex and not config["ihx"]:
-            t36_set = eps_real_ihx_func(epsilon['IHX'], variables[3], target_p32, variables[8], variables[11], wf,
+            t36_set = eps_real_ihx_func(epsilon['ihx'], variables[3], target_p32, variables[8], variables[11], wf,
                                         variables[9], variables[15], variables[0], variables[10], wf)
         else:
             t36_set = temperature_func(t36, variables[0], variables[10], wf)
         #   2
         if adex and not config["cond"]:
-            t32_set = eps_real_he_func(epsilon['COND'], variables[1], variables[2], variables[3], target_p32, variables[4], wf,
+            t32_set = eps_real_he_func(epsilon['cond'], variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                        variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
             t32_set = temperature_func(t32, variables[3], target_p32, wf)
@@ -210,20 +210,20 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         if adex and config["comp"]:
             t31_calc_comp_j = eps_compressor_deriv(1, variables[0], variables[10], variables[1], variables[2], wf)
         elif adex and not config["comp"]:
-            t31_calc_comp_j = eps_compressor_deriv(epsilon['COMP'], variables[0], variables[10], variables[1], variables[2], wf)
+            t31_calc_comp_j = eps_compressor_deriv(epsilon['comp'], variables[0], variables[10], variables[1], variables[2], wf)
         else:
             t31_calc_comp_j = eta_s_compressor_deriv(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
         #   1
         if adex and config["ihx"]:
             t36_set_j = same_temperature_deriv(variables[3], target_p32, wf, variables[0], variables[10], wf)
         elif adex and not config["ihx"]:
-            t36_set_j = eps_real_ihx_deriv(epsilon['IHX'], variables[3], target_p32, variables[8], variables[11], wf,
+            t36_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[3], target_p32, variables[8], variables[11], wf,
                                            variables[9], variables[15], variables[0], variables[10], wf)
         else:
             t36_set_j = temperature_deriv(t36, variables[0], variables[10], wf)
         #   2
         if adex and not config["cond"]:
-            t32_set_j = eps_real_he_deriv(epsilon['COND'], variables[1], variables[2], variables[3], target_p32, variables[4], wf,
+            t32_set_j = eps_real_he_deriv(epsilon['cond'], variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                           variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
             t32_set_j = temperature_deriv(t32, variables[3], target_p32, wf)
@@ -536,10 +536,10 @@ def epsilon_func(t0, p0, df):
         epsilon_val = e34t / (e33t + e33m - e34m)
 
     epsilon_components = {
-        'COMP': epsilon_comp,
-        'COND': epsilon_cond,
-        'IHX': epsilon_ihx,
-        'VAL': epsilon_val
+        'comp': epsilon_comp,
+        'cond': epsilon_cond,
+        'ihx': epsilon_ihx,
+        'val': epsilon_val
     }
 
     return epsilon_components
