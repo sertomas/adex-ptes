@@ -3,6 +3,7 @@ from CoolProp.CoolProp import PropsSI as PSI
 import itertools
 import multiprocessing
 import time
+import io
 import pandas as pd
 from func_fix import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor_deriv, turbo_func, turbo_deriv, he_func,
                       he_deriv, ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
@@ -545,8 +546,8 @@ def epsilon_func(t0, p0, df):
     return epsilon_components
 
 
-def find_opt_p32(p32_opt_start, min_t_diff_cond_start, config, label, adex=False):
-
+def find_opt_p32(p32_opt_start, min_t_diff_cond_start, config, label, adex=False, output_buffer=None):
+    buffer = io.StringIO()  # Create a new buffer
     if config["cond"]:
         target_min_td_cond = 0
     else:
@@ -568,10 +569,13 @@ def find_opt_p32(p32_opt_start, min_t_diff_cond_start, config, label, adex=False
         diff = abs(min_t_diff_cond - target_min_td_cond)
 
         step += 1
-        print(f"Optimization in progress for {label}: step = {step}, diff = {round(diff,6)}, p32 = {round(p32_opt*1e-5, 4)} bar, COP = {round(cop, 4)}.")
+        buffer.write(f"Optimization in progress for {label}: step = {step}, diff = {round(diff,6)}, p32 = {round(p32_opt*1e-5, 4)} bar, COP = {round(cop, 4)}.\n")
 
-    print(f"Optimization completed successfully in {step} steps!")
-    print("Optimal p32:", round(p32_opt*1e-5, 4), "bar.")
+    buffer.write(f"Optimization completed successfully in {step} steps!\n")
+    buffer.write(f"Optimal p32: {round(p32_opt*1e-5, 4)}, bar.\n")
+
+    if output_buffer is not None:
+        output_buffer.append(buffer.getvalue())
 
     return p32_opt
 
@@ -613,9 +617,9 @@ def set_adex_config(*args):
     return config, label
 
 
-def perform_adex_hp(p32_start, config, label, adex=False, save=False, print_results=False, calc_epsilon=False):
+def perform_adex_hp(p32_start, config, label, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
     [_, target_diff, _] = hp_simultaneous(p32_start, print_results=print_results, config=config, label=label, adex=adex)
-    p32_opt = find_opt_p32(p32_start, target_diff, config=config, label=label, adex=adex)
+    p32_opt = find_opt_p32(p32_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
     [df_opt, _, _] = hp_simultaneous(p32_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
     if calc_epsilon:
         t0 = 283.15   # K
@@ -634,7 +638,8 @@ def perform_adex_hp(p32_start, config, label, adex=False, save=False, print_resu
         round(df_opt, 5).to_csv(f'outputs/adex_hp/hp_streams_{label}.csv')
 
 
-# BEGIN OF MAIN --------------------------------------------------------------------------------------------------------
+'''
+# BEGIN OF MAIN (sequentially) -----------------------------------------------------------------------------------------
 start = time.perf_counter()
 
 # BASE CASE
@@ -661,7 +666,56 @@ for pair in component_pairs:
     perform_adex_hp(13e5, config_i, label_i, adex=True, save=True, print_results=True, calc_epsilon=True)
 
 
-# END OF MAIN ----------------------------------------------------------------------------------------------------------
-end = time.perf_counter()
-print(f"Elapsed time: {round(end - start, 3)} seconds.")
+# END OF MAIN (sequentially) -------------------------------------------------------------------------------------------
+'''
 
+
+def run_adex(config, label, adex, save, print_results, calc_epsilon, output_buffer=None):
+    perform_adex_hp(13e5, config, label, adex, save, print_results, calc_epsilon, output_buffer)
+
+
+def main():
+    start = time.perf_counter()
+
+    # Shared data structure for output
+    manager = multiprocessing.Manager()
+    output_buffer = manager.list()
+
+    # BASE CASE
+    [config_base, label_base] = set_adex_config()
+    perform_adex_hp(13e5, config_base, label_base, adex=False, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
+
+    tasks = []
+
+    # Create a pool of workers
+    with multiprocessing.Pool() as pool:
+
+        # Ideal Case
+        config_ideal, label_ideal = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
+        tasks.append((config_ideal, label_ideal, False, True, True, True, output_buffer))
+
+        # Advanced Exergy Analysis -- single components
+        components = ['comp', 'cond', 'ihx', 'val', 'eva']
+        for component in components:
+            config_i, label_i = set_adex_config(component)
+            tasks.append((config_i, label_i, True, True, True, True, output_buffer))
+
+        # Advanced Exergy Analysis -- pair of components
+        component_pairs = list(itertools.combinations(components, 2))
+        for pair in component_pairs:
+            config_i, label_i = set_adex_config(*pair)
+            tasks.append((config_i, label_i, True, True, True, True, output_buffer))
+
+        # Map tasks to the pool
+        pool.starmap(run_adex, tasks)
+
+    # Print the stored outputs after all tasks are done
+    for output in output_buffer:
+        print(output)
+
+    end = time.perf_counter()
+    print(f"Elapsed time: {round(end - start, 3)} seconds.")
+
+
+if __name__ == '__main__':
+    main()
