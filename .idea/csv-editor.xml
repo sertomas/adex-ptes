@@ -73,6 +73,34 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/outputs/adex_hp/hp_adex_results.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_COMP.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_COMP_EVA.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_COMP_IHX.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/outputs/adex_hp/hp_epsilon_COMP_VAL.csv">
           <value>
             <Attribute>
@@ -102,6 +130,20 @@
           </value>
         </entry>
         <entry key="/outputs/adex_hp/hp_epsilon_EVA.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_IHX.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_IHX_VAL.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -144,6 +186,20 @@
           </value>
         </entry>
         <entry key="/outputs/adex_hp/hp_streams_VAL.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_streams_VAL_EVA.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_streams_ideal.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

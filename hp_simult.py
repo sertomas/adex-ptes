@@ -502,19 +502,19 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
     return df_streams, t_pinch_cond_sh, cop
 
 
-def epsilon_func(t0, p0, df):
+def exergy_analysis(t0, p0, df):
 
     h0_wf = PSI("H", "T", t0, "P", p0, df.loc[31, 'fluid']) * 1e-3
     s0_wf = PSI("S", "T", t0, "P", p0, df.loc[31, 'fluid'])
     h0_tes = PSI("H", "T", t0, "P", p0, df.loc[21, 'fluid']) * 1e-3
     s0_tes = PSI("S", "T", t0, "P", p0, df.loc[21, 'fluid'])
-    
+
     for i in [31, 32, 33, 34, 35, 36, 38, 39]:
         df.loc[i, 'e^PH [kJ/kg]'] = df.loc[i, 'h [kJ/kg]'] - h0_wf - t0 * (df.loc[i, 's [J/kgK]'] - s0_wf) * 1e-3
     for i in [21, 22, 28, 29]:
         df.loc[i, 'e^PH [kJ/kg]'] = df.loc[i, 'h [kJ/kg]'] - h0_tes - t0 * (df.loc[i, 's [J/kgK]'] - s0_tes) * 1e-3
 
-    epsilon_ihx = ((df.loc[36, 'e^PH [kJ/kg]'] - df.loc[35, 'e^PH [kJ/kg]']) 
+    epsilon_ihx = ((df.loc[36, 'e^PH [kJ/kg]'] - df.loc[35, 'e^PH [kJ/kg]'])
                    / (df.loc[32, 'e^PH [kJ/kg]'] - df.loc[33, 'e^PH [kJ/kg]']))
 
     epsilon_cond = ((df.loc[21, 'm [kg/s]'] * (df.loc[22, 'e^PH [kJ/kg]'] - df.loc[21, 'e^PH [kJ/kg]']))
@@ -543,7 +543,30 @@ def epsilon_func(t0, p0, df):
         'val': epsilon_val
     }
 
-    return epsilon_components
+    # ED_COMP = T0 * (S31 - S36)
+    ed_comp = t0 * (df.loc[31, 'm [kg/s]'] * (df.loc[31, 's [J/kgK]'] - df.loc[36, 's [J/kgK]'])) * 1e-3
+    # ED_COND = T0 * (S32 - S31 + S22 - S11)
+    ed_cond = t0 * (df.loc[31, 'm [kg/s]'] * (df.loc[32, 's [J/kgK]'] - df.loc[31, 's [J/kgK]']) +
+                    df.loc[21, 'm [kg/s]'] * (df.loc[22, 's [J/kgK]'] - df.loc[21, 's [J/kgK]'])) * 1e-3
+    # ED_IHX = T0 * (S33 - S32 + S36 - S35)
+    ed_ihx = t0 * (df.loc[31, 'm [kg/s]'] * (df.loc[33, 's [J/kgK]'] - df.loc[32, 's [J/kgK]']) +
+                   df.loc[31, 'm [kg/s]'] * (df.loc[36, 's [J/kgK]'] - df.loc[35, 's [J/kgK]'])) * 1e-3
+    # ED_VAL = T0 * (S34 - S33)
+    ed_val = t0 * (df.loc[31, 'm [kg/s]'] * (df.loc[34, 's [J/kgK]'] - df.loc[33, 's [J/kgK]'])) * 1e-3
+    # ED_EVA = - Q * (1 - T0/Tb)    "- Q" because exergy associated to heat goes in the other direction
+    temp_boundary = ((df.loc[35, 'h [kJ/kg]'] - df.loc[34, 'h [kJ/kg]'])
+                     / (df.loc[35, 's [J/kgK]'] - df.loc[34, 's [J/kgK]']) * 1e3)
+    ed_eva = - (df.loc[31, 'm [kg/s]'] * (df.loc[35, 'h [kJ/kg]'] - df.loc[34, 'h [kJ/kg]'])) * (1 - t0 / temp_boundary)
+
+    ed_components = {
+        'comp': ed_comp,
+        'cond': ed_cond,
+        'ihx': ed_ihx,
+        'val': ed_val,
+        'eva': ed_eva,
+    }
+
+    return epsilon_components, ed_components
 
 
 def find_opt_p32(p32_opt_start, min_t_diff_cond_start, config, label, adex=False, output_buffer=None):
@@ -617,14 +640,17 @@ def set_adex_config(*args):
     return config, label
 
 
-def perform_adex_hp(p32_start, config, label, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
+def perform_adex_hp(p32_start, config, label, df_results, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
     [_, target_diff, _] = hp_simultaneous(p32_start, print_results=print_results, config=config, label=label, adex=adex)
     p32_opt = find_opt_p32(p32_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
     [df_opt, _, _] = hp_simultaneous(p32_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
+    t0 = 283.15   # K
+    p0 = 1.013e5  # Pa
+    [epsilon_dict, ed_dict] = exergy_analysis(t0, p0, df_opt)
+    for key, value in ed_dict.items():
+        df_results.loc[(label, key), "ED [kW]"] = value
     if calc_epsilon:
-        t0 = 283.15   # K
-        p0 = 1.013e5  # Pa
-        df_epsilon = pd.DataFrame.from_dict(epsilon_func(t0, p0, df_opt), orient='index', columns=['Value'])
+        df_epsilon = pd.DataFrame.from_dict(epsilon_dict, orient='index', columns=['Value'])
         df_epsilon.to_csv(f'outputs/adex_hp/hp_epsilon_{label}.csv')
     if df_opt.loc[32, "T [°C]"] < df_opt.loc[21, "T [°C]"] - 1e-3:
         print("Error: Lower temperature difference in COND is negative!")
@@ -637,45 +663,54 @@ def perform_adex_hp(p32_start, config, label, adex=False, save=False, print_resu
     if save:
         round(df_opt, 5).to_csv(f'outputs/adex_hp/hp_streams_{label}.csv')
 
-
-'''
-# BEGIN OF MAIN (sequentially) -----------------------------------------------------------------------------------------
-start = time.perf_counter()
-
-# BASE CASE
-[config_base, label_base] = set_adex_config()
-perform_adex_hp(13e5, config_base, label_base, adex=False, save=True, print_results=True, calc_epsilon=True)
+    return df_results
 
 
-# IDEAL CASE
-[config_base, label_base] = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
-perform_adex_hp(13e5, config_base, label_base, adex=False, save=True, print_results=True, calc_epsilon=True)
-
-
-# ADVANCED EXERGY ANALYSIS -- single components
-components = ['comp', 'cond', 'ihx', 'val', 'eva']
-for component in components:
-    config_i, label_i = set_adex_config(component)
-    perform_adex_hp(13e5, config_i, label_i, adex=True, save=True, print_results=True, calc_epsilon=True)
-
-
-# ADVANCED EXERGY ANALYSIS -- pair of components
-component_pairs = list(itertools.combinations(components, 2))
-for pair in component_pairs:
-    config_i, label_i = set_adex_config(*pair)
-    perform_adex_hp(13e5, config_i, label_i, adex=True, save=True, print_results=True, calc_epsilon=True)
-
-
-# END OF MAIN (sequentially) -------------------------------------------------------------------------------------------
-'''
-
-
-def run_adex(config, label, adex, save, print_results, calc_epsilon, output_buffer=None):
-    perform_adex_hp(13e5, config, label, adex, save, print_results, calc_epsilon, output_buffer)
-
-
-def main():
+def main_serial():
+    # BEGIN OF MAIN (sequentially) -------------------------------------------------------------------------------------
     start = time.perf_counter()
+
+    columns = ["ED"]
+    multi_index = pd.MultiIndex(levels=[[], []], codes=[[], []], names=["Label", "Key"])
+    df_results = pd.DataFrame(columns=columns, index=multi_index)
+
+    # BASE CASE
+    [config_base, label_base] = set_adex_config()
+    perform_adex_hp(13e5, config_base, label_base, df_results, adex=False, save=True, print_results=True, calc_epsilon=True)
+
+    # IDEAL CASE
+    [config_base, label_base] = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
+    perform_adex_hp(13e5, config_base, label_base, df_results, adex=False, save=True, print_results=True, calc_epsilon=True)
+
+    # ADVANCED EXERGY ANALYSIS -- single components
+    components = ['comp', 'cond', 'ihx', 'val', 'eva']
+    for component in components:
+        config_i, label_i = set_adex_config(component)
+        perform_adex_hp(13e5, config_i, label_i, df_results, adex=True, save=True, print_results=True, calc_epsilon=True)
+
+    # ADVANCED EXERGY ANALYSIS -- pair of components
+    component_pairs = list(itertools.combinations(components, 2))
+    for pair in component_pairs:
+        config_i, label_i = set_adex_config(*pair)
+        perform_adex_hp(13e5, config_i, label_i, df_results, adex=True, save=True, print_results=True, calc_epsilon=True)
+
+    # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
+
+
+def run_adex(config, label, df_results, adex, save, print_results, calc_epsilon, output_buffer=None):
+    df_results = perform_adex_hp(13e5, config, label, df_results, adex, save, print_results, calc_epsilon, output_buffer)
+    return df_results
+
+
+def main_multiprocess():
+    start = time.perf_counter()
+
+    # Initialize the DataFrame for storing results
+    columns = ["ED [kW]"]
+    multi_index = pd.MultiIndex(levels=[[], []], codes=[[], []], names=["Label", "Key"])
+    df_results_base = pd.DataFrame(columns=columns, index=multi_index)
+    df_results_i = pd.DataFrame(columns=columns, index=multi_index)
+    df_results = pd.DataFrame(columns=columns, index=multi_index)
 
     # Shared data structure for output
     manager = multiprocessing.Manager()
@@ -683,7 +718,7 @@ def main():
 
     # BASE CASE
     [config_base, label_base] = set_adex_config()
-    perform_adex_hp(13e5, config_base, label_base, adex=False, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
+    perform_adex_hp(13e5, config_base, label_base, df_results_base, adex=False, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
 
     tasks = []
 
@@ -692,30 +727,49 @@ def main():
 
         # Ideal Case
         config_ideal, label_ideal = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
-        tasks.append((config_ideal, label_ideal, False, True, True, True, output_buffer))
+        tasks.append((config_ideal, label_ideal, df_results_i, True, True, True, True, output_buffer))
 
         # Advanced Exergy Analysis -- single components
         components = ['comp', 'cond', 'ihx', 'val', 'eva']
         for component in components:
             config_i, label_i = set_adex_config(component)
-            tasks.append((config_i, label_i, True, True, True, True, output_buffer))
+            tasks.append((config_i, label_i, df_results_i, True, True, True, True, output_buffer))
 
         # Advanced Exergy Analysis -- pair of components
         component_pairs = list(itertools.combinations(components, 2))
         for pair in component_pairs:
             config_i, label_i = set_adex_config(*pair)
-            tasks.append((config_i, label_i, True, True, True, True, output_buffer))
+            tasks.append((config_i, label_i, df_results_i, True, True, True, True, output_buffer))
 
         # Map tasks to the pool
-        pool.starmap(run_adex, tasks)
+        results = pool.starmap(run_adex, tasks)
+
+    print(round(time.perf_counter() - start, 3))
+
+    # Collect and concatenate results
+    for result in results:
+        df_result = pd.DataFrame(result, columns=columns)
+        df_results = pd.concat([df_results, df_result])
+
+    df_results = pd.concat([df_results_base, df_results])
 
     # Print the stored outputs after all tasks are done
     for output in output_buffer:
         print(output)
 
+    for col in df_results.columns[:]:
+        df_results[col] = pd.to_numeric(df_results[col], errors='coerce')
+    df_results.round(5).to_csv('outputs/adex_hp/hp_adex_results.csv')
+
     end = time.perf_counter()
     print(f"Elapsed time: {round(end - start, 3)} seconds.")
 
 
+multi = True
+
 if __name__ == '__main__':
-    main()
+    if multi:
+        main_multiprocess()
+    else:
+        main_serial()
+
