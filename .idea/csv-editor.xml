@@ -3,6 +3,20 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
+        <entry key="/outputs/adex_hp/hp_adex_analysis.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_adex_ed.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/outputs/adex_hp/hp_adex_results.csv">
           <value>
             <Attribute>
@@ -73,6 +87,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_IHX_EVA.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/outputs/adex_hp/hp_epsilon_IHX_VAL.csv">
           <value>
             <Attribute>
@@ -88,6 +109,41 @@
           </value>
         </entry>
         <entry key="/outputs/adex_hp/hp_epsilon_VAL_EVA.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_comp_cond_ihx.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_comp_cond_ihx_eva.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_comp_val_eva.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_cond_ihx_eva.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_epsilon_cond_ihx_val.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -158,6 +214,20 @@
           </value>
         </entry>
         <entry key="/outputs/adex_hp/hp_streams_VAL_EVA.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_streams_comp_cond_ihx.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_streams_cond.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

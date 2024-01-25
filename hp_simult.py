@@ -39,20 +39,20 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
     # PRESSURE DROPS
     if config["cond"]:
         pr_cond_cold = 1
-        pr_cond_hot = 1
+        pr_cond_hot = 0.95
     else:
         pr_cond_cold = 1
-        pr_cond_hot = 0.95
+        pr_cond_hot = 1
     if config["ihx"]:
-        pr_ihx_hot = 1
-        pr_ihx_cold = 1
-    else:
         pr_ihx_hot = 0.985
         pr_ihx_cold = 0.985
-    if config["eva"]:
-        pr_eva_cold = 1
     else:
+        pr_ihx_hot = 1
+        pr_ihx_cold = 1
+    if config["eva"]:
         pr_eva_cold = 0.95
+    else:
+        pr_eva_cold = 1
 
     pr_cond_part_cold = np.cbrt(pr_cond_cold)  # cond pressure drop is split equally (geom, mean) between ECO-EVA-SH
     pr_cond_part_hot = np.cbrt(pr_cond_hot)    # cond pressure drop is split equally (geom, mean) between ECO-EVA-SH
@@ -63,19 +63,19 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
 
     # HEAT PUMP
     if config["cond"]:
-        ttd_l_cond = 0  # K
-    else:
         ttd_l_cond = 5  # K
+    else:
+        ttd_l_cond = 0  # K
 
     if config["ihx"]:
-        ttd_u_ihx = 0   # K
-    else:
         ttd_u_ihx = 5   # K
+    else:
+        ttd_u_ihx = 0   # K
 
     if config["eva"]:
-        ttd_l_eva = 0   # K
-    else:
         ttd_l_eva = 5   # K
+    else:
+        ttd_l_eva = 0   # K
 
     # TECHNICAL PARAMETERS
     eta_s = 0.85
@@ -131,22 +131,22 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #        16,  17   18   19   20   21   22   23
 
         #   0
-        if adex and config["comp"]:
+        if adex and not config["comp"]:
             t31_calc_comp = eps_compressor_func(1, variables[0], variables[10], variables[1], variables[2], wf)
-        elif adex and not config["comp"]:
+        elif adex and config["comp"]:
             t31_calc_comp = eps_compressor_func(epsilon['comp'], variables[0], variables[10], variables[1], variables[2], wf)
         else:
             t31_calc_comp = eta_s_compressor_func(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
         #   1
-        if adex and config["ihx"]:
+        if adex and not config["ihx"]:
             t36_set = same_temperature_func(variables[3], target_p32, wf, variables[0], variables[10], wf)
-        elif adex and not config["ihx"]:
+        elif adex and config["ihx"]:
             t36_set = eps_real_ihx_func(epsilon['ihx'], variables[3], target_p32, variables[8], variables[11], wf,
                                         variables[9], variables[15], variables[0], variables[10], wf)
         else:
             t36_set = temperature_func(t36, variables[0], variables[10], wf)
         #   2
-        if adex and not config["cond"]:
+        if adex and config["cond"]:
             t32_set = eps_real_he_func(epsilon['cond'], variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                        variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
@@ -156,7 +156,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #   4
         power_calc_comp = turbo_func(variables[5], variables[4], variables[0], variables[1])
         #   5
-        if adex and config["cond"]:
+        if adex and not config["cond"]:
             m31_calc_cond = ideal_he_entropy_func(variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                                   variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
@@ -166,7 +166,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #   7
         t22_set = temperature_func(t22, variables[7], variables[14], fluid_tes)
         #   8
-        if adex and config["ihx"]:
+        if adex and not config["ihx"]:
             t33_calc_ihx = ideal_ihx_entropy_func(variables[3], target_p32, variables[8], variables[11], wf,
                                                   variables[9], variables[15], variables[0], variables[10], wf)
         else:
@@ -176,7 +176,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #   10
         p33_set = pr_func(pr_ihx_hot, target_p32, variables[11])
         #   11
-        if adex and config["val"]:
+        if adex and not config["val"]:
             t34_calc_valve = ideal_valve_entropy_func(variables[8], variables[11], variables[12], variables[13], wf)
         else:
             t34_calc_valve = valve_func(variables[8], variables[12])
@@ -212,22 +212,22 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         jacobian = np.zeros((len(variables), len(variables)))
 
         #   0
-        if adex and config["comp"]:
+        if adex and not config["comp"]:
             t31_calc_comp_j = eps_compressor_deriv(1, variables[0], variables[10], variables[1], variables[2], wf)
-        elif adex and not config["comp"]:
+        elif adex and config["comp"]:
             t31_calc_comp_j = eps_compressor_deriv(epsilon['comp'], variables[0], variables[10], variables[1], variables[2], wf)
         else:
             t31_calc_comp_j = eta_s_compressor_deriv(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
         #   1
-        if adex and config["ihx"]:
+        if adex and not config["ihx"]:
             t36_set_j = same_temperature_deriv(variables[3], target_p32, wf, variables[0], variables[10], wf)
-        elif adex and not config["ihx"]:
+        elif adex and config["ihx"]:
             t36_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[3], target_p32, variables[8], variables[11], wf,
                                            variables[9], variables[15], variables[0], variables[10], wf)
         else:
             t36_set_j = temperature_deriv(t36, variables[0], variables[10], wf)
         #   2
-        if adex and not config["cond"]:
+        if adex and config["cond"]:
             t32_set_j = eps_real_he_deriv(epsilon['cond'], variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                           variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
@@ -237,7 +237,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #   4
         power_calc_comp_j = turbo_deriv(variables[5], variables[4], variables[0], variables[1])
         #   5
-        if adex and config["cond"]:
+        if adex and not config["cond"]:
             m31_calc_cond_j = ideal_he_entropy_deriv(variables[1], variables[2], variables[3], target_p32, variables[4], wf,
                                                      variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:
@@ -247,7 +247,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #   7
         t22_set_j = temperature_deriv(t22, variables[7], variables[14], fluid_tes)
         #   8
-        if adex and config["ihx"]:
+        if adex and not config["ihx"]:
             t33_calc_ihx_j = ideal_ihx_entropy_deriv(variables[3], target_p32, variables[8], variables[11], wf,
                                                      variables[9], variables[15], variables[0], variables[10], wf)
         else:
@@ -257,7 +257,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #   10
         p33_set_j = pr_deriv(pr_ihx_hot, target_p32, variables[11])
         #   11
-        if adex and config["val"]:
+        if adex and not config["val"]:
             t34_calc_valve_j = ideal_valve_entropy_deriv(variables[8], variables[11], variables[12], variables[13], wf)
         else:
             t34_calc_valve_j = valve_deriv(variables[8], variables[12])
@@ -295,11 +295,11 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         jacobian[0, 10] = t31_calc_comp_j["p_1"]  # derivative of t31_calc_comp with respect to p36
         jacobian[0, 1] = t31_calc_comp_j["h_2"]  # derivative of t31_calc_comp with respect to h31
         jacobian[0, 2] = t31_calc_comp_j["p_2"]  # derivative of t31_calc_comp with respect to p31
-        if adex and config["ihx"]:
+        if adex and not config["ihx"]:
             jacobian[1, 3] = t36_set_j["h_copy"]  # derivative of t36_set with respect to h36
             jacobian[1, 0] = t36_set_j["h_paste"]  # derivative of t36_set with respect to p36
             jacobian[1, 10] = t36_set_j["p_paste"]  # derivative of t36_set with respect to h36
-        elif adex and not config["ihx"]:
+        elif adex and config["ihx"]:
             jacobian[1, 3] = t36_set_j["h_hot_in"]  # derivative of t36_set with respect to h36
             jacobian[1, 8] = t36_set_j["h_hot_out"]  # derivative of t36_set with respect to p36
             jacobian[1, 11] = t36_set_j["p_hot_out"]  # derivative of t36_set with respect to h36
@@ -310,7 +310,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         else:
             jacobian[1, 0] = t36_set_j["h"]  # derivative of t36_set with respect to h36
             jacobian[1, 10] = t36_set_j["p"]  # derivative of t36_set with respect to p36
-        if adex and not config["cond"]:
+        if adex and config["cond"]:
             jacobian[2, 1] = t32_set_j["h_hot_in"]  # derivative of m31_calc_cond with respect to h31
             jacobian[2, 2] = t32_set_j["p_hot_in"]  # derivative of m31_calc_cond with respect to h32
             jacobian[2, 3] = t32_set_j["h_hot_out"]  # derivative of m31_calc_cond with respect to m31
@@ -325,7 +325,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         jacobian[4, 4] = power_calc_comp_j["m"]  # derivative of power_calc_comp with respect to m31
         jacobian[4, 0] = power_calc_comp_j["h_1"]  # derivative of power_calc_comp with respect to h36
         jacobian[4, 1] = power_calc_comp_j["h_2"]  # derivative of power_calc_comp with respect to h31
-        if adex and config["cond"]:
+        if adex and not config["cond"]:
             jacobian[5, 1] = m31_calc_cond_j["h_hot_in"]  # derivative of m31_calc_cond with respect to h31
             jacobian[5, 2] = m31_calc_cond_j["p_hot_in"]  # derivative of m31_calc_cond with respect to h32
             jacobian[5, 3] = m31_calc_cond_j["h_hot_out"]  # derivative of m31_calc_cond with respect to h32
@@ -342,7 +342,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         jacobian[6, 6] = t21_set_j["h"]  # derivative of t21_set with respect to h21
         jacobian[7, 7] = t22_set_j["h"]  # derivative of t22_set with respect to h22
         jacobian[7, 14] = t22_set_j["p"]  # derivative of t22_set with respect to p22
-        if adex and config["ihx"]:
+        if adex and not config["ihx"]:
             jacobian[8, 3] = t33_calc_ihx_j["h_hot_in"]  # derivative of t36_set with respect to h36
             jacobian[8, 8] = t33_calc_ihx_j["h_hot_out"]  # derivative of t36_set with respect to p36
             jacobian[8, 11] = t33_calc_ihx_j["p_hot_out"]  # derivative of t36_set with respect to h36
@@ -358,7 +358,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         jacobian[9, 10] = p36_set_j["p_2"]  # derivative of p36_set with respect to p36
         jacobian[9, 15] = p36_set_j["p_1"]  # derivative of p36_set with respect to p35
         jacobian[10, 11] = p33_set_j["p_2"]  # derivative of p33_set with respect to p33
-        if adex and config["val"]:
+        if adex and not config["val"]:
             jacobian[11, 8] = t34_calc_valve_j["h_1"]  # derivative of t34_calc_valve with respect to h33
             jacobian[11, 11] = t34_calc_valve_j["p_1"]  # derivative of t34_calc_valve with respect to p33
             jacobian[11, 12] = t34_calc_valve_j["h_2"]  # derivative of t34_calc_valve with respect to h34
@@ -591,9 +591,9 @@ def exergy_analysis(t0, p0, df):
 def find_opt_p32(p32_opt_start, min_t_diff_cond_start, config, label, adex=False, output_buffer=None):
     buffer = io.StringIO()  # Create a new buffer
     if config["cond"]:
-        target_min_td_cond = 0
-    else:
         target_min_td_cond = 5
+    else:
+        target_min_td_cond = 0
     min_t_diff_cond = target_min_td_cond
     p32_opt = p32_opt_start
     tolerance = 1e-3  # relative to min temperature difference
@@ -627,15 +627,6 @@ def set_adex_config(*args):
     config_keys = ['comp', 'cond', 'ihx', 'val', 'eva']
     config = {key: False for key in config_keys}
 
-    # Mapping of keys to label substrings
-    label_mappings = {
-        'comp': 'COMP',
-        'cond': 'COND',
-        'ihx': 'IHX',
-        'val': 'VAL',
-        'eva': 'EVA'
-    }
-
     # Set the keys provided in args to True
     for arg in args:
         if arg in config:
@@ -644,22 +635,19 @@ def set_adex_config(*args):
             print(f"Warning: '{arg}' is not a valid key. It has been ignored.")
 
     # Generate the label
-    label_parts = []
-    for key, value in config.items():
-        if value:
-            label_parts.append(label_mappings.get(key, ''))
-
+    label_parts = [key for key, value in config.items() if value]
     label = '_'.join(label_parts)
 
+    # Assign special labels for certain conditions
     if label == "":
-        label = "real"
-    elif all(config.values()):
         label = "ideal"
+    elif all(config.values()):
+        label = "real"
 
     return config, label
 
 
-def perform_adex_hp(p32_start, config, label, df_results, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
+def perform_adex_hp(p32_start, config, label, df_ed, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
     [_, target_diff, _] = hp_simultaneous(p32_start, print_results=print_results, config=config, label=label, adex=adex)
     p32_opt = find_opt_p32(p32_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
     [df_opt, _, _] = hp_simultaneous(p32_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
@@ -667,7 +655,7 @@ def perform_adex_hp(p32_start, config, label, df_results, adex=False, save=False
     p0 = 1.013e5  # Pa
     [epsilon_dict, ed_dict] = exergy_analysis(t0, p0, df_opt)
     for key, value in ed_dict.items():
-        df_results.loc[(label, key), "ED [kW]"] = value
+        df_ed.loc[(label, key), "ED [kW]"] = value
     if calc_epsilon:
         df_epsilon = pd.DataFrame.from_dict(epsilon_dict, orient='index', columns=['Value'])
         df_epsilon.to_csv(f'outputs/adex_hp/hp_epsilon_{label}.csv')
@@ -682,7 +670,7 @@ def perform_adex_hp(p32_start, config, label, df_results, adex=False, save=False
     if save:
         round(df_opt, 5).to_csv(f'outputs/adex_hp/hp_streams_{label}.csv')
 
-    return df_results
+    return df_ed
 
 
 def main_serial():
@@ -691,34 +679,34 @@ def main_serial():
 
     columns = ["ED"]
     multi_index = pd.MultiIndex(levels=[[], []], codes=[[], []], names=["Label", "Key"])
-    df_results = pd.DataFrame(columns=columns, index=multi_index)
+    df_ed = pd.DataFrame(columns=columns, index=multi_index)
 
     # BASE CASE
-    [config_base, label_base] = set_adex_config()
-    perform_adex_hp(13e5, config_base, label_base, df_results, adex=False, save=True, print_results=True, calc_epsilon=True)
+    [config_base, label_base] = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
+    perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
 
     # IDEAL CASE
-    [config_base, label_base] = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
-    perform_adex_hp(13e5, config_base, label_base, df_results, adex=False, save=True, print_results=True, calc_epsilon=True)
+    [config_base, label_base] = set_adex_config()
+    perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- single components
     components = ['comp', 'cond', 'ihx', 'val', 'eva']
     for component in components:
         config_i, label_i = set_adex_config(component)
-        perform_adex_hp(13e5, config_i, label_i, df_results, adex=True, save=True, print_results=True, calc_epsilon=True)
+        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- pair of components
     component_pairs = list(itertools.combinations(components, 2))
     for pair in component_pairs:
         config_i, label_i = set_adex_config(*pair)
-        perform_adex_hp(13e5, config_i, label_i, df_results, adex=True, save=True, print_results=True, calc_epsilon=True)
+        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
 
     # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
 
 
-def run_adex(config, label, df_results, adex, save, print_results, calc_epsilon, output_buffer=None):
-    df_results = perform_adex_hp(13e5, config, label, df_results, adex, save, print_results, calc_epsilon, output_buffer)
-    return df_results
+def run_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer=None):
+    df_ed = perform_adex_hp(13e5, config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer)
+    return df_ed
 
 
 def main_multiprocess():
@@ -727,17 +715,17 @@ def main_multiprocess():
     # Initialize the DataFrame for storing results
     columns = ["ED [kW]"]
     multi_index = pd.MultiIndex(levels=[[], []], codes=[[], []], names=["Label", "Key"])
-    df_results_base = pd.DataFrame(columns=columns, index=multi_index)
-    df_results_i = pd.DataFrame(columns=columns, index=multi_index)
-    df_results = pd.DataFrame(columns=columns, index=multi_index)
+    df_ed_base = pd.DataFrame(columns=columns, index=multi_index)
+    df_ed_i = pd.DataFrame(columns=columns, index=multi_index)
+    df_ed = pd.DataFrame(columns=columns, index=multi_index)
 
     # Shared data structure for output
     manager = multiprocessing.Manager()
     output_buffer = manager.list()
 
     # BASE CASE
-    [config_base, label_base] = set_adex_config()
-    perform_adex_hp(13e5, config_base, label_base, df_results_base, adex=False, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
+    [config_base, label_base] = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
+    perform_adex_hp(13e5, config_base, label_base, df_ed_base, adex=False, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
 
     tasks = []
 
@@ -745,20 +733,20 @@ def main_multiprocess():
     with multiprocessing.Pool() as pool:
 
         # Ideal Case
-        config_ideal, label_ideal = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
-        tasks.append((config_ideal, label_ideal, df_results_i, True, True, True, True, output_buffer))
+        config_ideal, label_ideal = set_adex_config()
+        tasks.append((config_ideal, label_ideal, df_ed_i, True, True, True, True, output_buffer))
 
         # Advanced Exergy Analysis -- single components
         components = ['comp', 'cond', 'ihx', 'val', 'eva']
         for component in components:
             config_i, label_i = set_adex_config(component)
-            tasks.append((config_i, label_i, df_results_i, True, True, True, True, output_buffer))
+            tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
 
         # Advanced Exergy Analysis -- pair of components
         component_pairs = list(itertools.combinations(components, 2))
         for pair in component_pairs:
             config_i, label_i = set_adex_config(*pair)
-            tasks.append((config_i, label_i, df_results_i, True, True, True, True, output_buffer))
+            tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
 
         # Map tasks to the pool
         results = pool.starmap(run_adex, tasks)
@@ -768,17 +756,58 @@ def main_multiprocess():
     # Collect and concatenate results
     for result in results:
         df_result = pd.DataFrame(result, columns=columns)
-        df_results = pd.concat([df_results, df_result])
+        df_ed = pd.concat([df_ed, df_result])
 
-    df_results = pd.concat([df_results_base, df_results])
+    df_ed = pd.concat([df_ed_base, df_ed])
 
     # Print the stored outputs after all tasks are done
     for output in output_buffer:
         print(output)
 
-    for col in df_results.columns[:]:
-        df_results[col] = pd.to_numeric(df_results[col], errors='coerce')
-    df_results.round(5).to_csv('outputs/adex_hp/hp_adex_results.csv')
+    for col in df_ed.columns[:]:
+        df_ed[col] = pd.to_numeric(df_ed[col], errors='coerce')
+    df_ed.round(5).to_csv('outputs/adex_hp/hp_adex_ed.csv')
+
+    # Generate combinations
+    combinations = []
+    for component in components:
+        combinations.append((component, ""))  # Component considered alone
+        for other_component in components:
+            if component != other_component:
+                combinations.append((component, other_component))
+
+    # Create a MultiIndex
+    multi_index = pd.MultiIndex.from_tuples(combinations, names=["k", "l"])
+
+    # Initialize DataFrame with MultiIndex
+    df_adex_analysis = pd.DataFrame(index=multi_index)
+    epsilon = pd.read_csv("outputs/adex_hp/hp_epsilon_real.csv", index_col=0)["Value"]
+    epsilon["eva"] = float('nan')
+
+    for k in components:
+        df_real = pd.read_csv(f"outputs/adex_hp/hp_streams_real.csv", index_col=0)
+        df_k = pd.read_csv(f"outputs/adex_hp/hp_streams_{k}.csv", index_col=0)
+        df_adex_analysis.loc[(k, ""), "ED [kW]"] = df_ed.loc[("real", k), "ED [kW]"]
+        df_adex_analysis.loc[(k, ""), "epsilon [%]"] = epsilon[k] * 100
+        df_adex_analysis.loc[(k, ""), "ED^EN [kW]"] = df_ed.loc[(k, k), "ED [kW]"]
+        df_adex_analysis.loc[(k, ""), "ED^EX [kW]"] = df_adex_analysis.loc[(k, ""), "ED [kW]"]-df_adex_analysis.loc[(k, ""), "ED^EN [kW]"]
+        df_adex_analysis.loc[(k, ""), "m^EN [kg/s]"] = df_k.loc[31, "m [kg/s]"]
+        df_adex_analysis.loc[(k, ""), "m^EX [kg/s]"] = df_real.loc[31, "m [kg/s]"] - df_k.loc[31, "m [kg/s]"]
+        sum_ed_ex_l = 0
+        for l in components:
+            if k != l:
+                k_l = f"{k}_{l}"
+                if (k_l, l) not in df_ed.index:
+                    k_l = f"{l}_{k}"
+                df_k_l = pd.read_csv(f"outputs/adex_hp/hp_streams_{k_l}.csv", index_col=0)
+                df_adex_analysis.loc[(k, l), "m^EN [kg/s]"] = df_k_l.loc[31, "m [kg/s]"]
+                df_adex_analysis.loc[(k, l), "m^EX [kg/s]"] = df_real.loc[31, "m [kg/s]"] - df_k_l.loc[31, "m [kg/s]"]
+                df_adex_analysis.loc[(k, l), "ED^kl [kW]"] = df_ed.loc[(k_l, k), "ED [kW]"]
+                df_adex_analysis.loc[(k, l), "ED^kl [kW]"] = df_ed.loc[(k_l, k), "ED [kW]"]
+                df_adex_analysis.loc[(k, l), "ED^EX,l [kW]"] = df_adex_analysis.loc[(k, ""), "ED^EN [kW]"] - df_adex_analysis.loc[(k, l), "ED^kl [kW]"]
+                sum_ed_ex_l += df_adex_analysis.loc[(k, l), "ED^EX,l [kW]"]
+        df_adex_analysis.loc[(k, ""), "ED^MEXO [kW]"] = df_adex_analysis.loc[(k, ""), "ED^EX [kW]"] - sum_ed_ex_l
+    df_adex_analysis.round(2).to_csv('outputs/adex_hp/hp_adex_analysis.csv')
 
     end = time.perf_counter()
     print(f"Elapsed time: {round(end - start, 3)} seconds.")
