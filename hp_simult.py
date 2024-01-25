@@ -127,8 +127,8 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
     while np.linalg.norm(residual) > 1e-4:
         # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
         #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
-        #       h38, h39, h28, h29, p38, p39, p28, p29,     power_cond])]
-        #        16,  17   18   19   20   21   22   23          24
+        #       h38, h39, h28, h29, p38, p39, p28, p29])]
+        #        16,  17   18   19   20   21   22   23
 
         #   0
         if adex and config["comp"]:
@@ -166,7 +166,11 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #   7
         t22_set = temperature_func(t22, variables[7], variables[14], fluid_tes)
         #   8
-        t33_calc_ihx = ihx_func(variables[3], variables[8], variables[9], variables[0])  # TODO here P_ihx
+        if adex and config["ihx"]:
+            t33_calc_ihx = ideal_ihx_entropy_func(variables[3], target_p32, variables[8], variables[11], wf,
+                                                  variables[9], variables[15], variables[0], variables[10], wf)
+        else:
+            t33_calc_ihx = ihx_func(variables[3], variables[8], variables[9], variables[0])
         #   9
         p36_set = pr_func(pr_ihx_cold, variables[15], variables[10])
         #   10
@@ -243,7 +247,11 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #   7
         t22_set_j = temperature_deriv(t22, variables[7], variables[14], fluid_tes)
         #   8
-        t33_calc_ihx_j = ihx_deriv(variables[3], variables[8], variables[9], variables[0])
+        if adex and config["ihx"]:
+            t33_calc_ihx_j = ideal_ihx_entropy_deriv(variables[3], target_p32, variables[8], variables[11], wf,
+                                                     variables[9], variables[15], variables[0], variables[10], wf)
+        else:
+            t33_calc_ihx_j = ihx_deriv(variables[3], variables[8], variables[9], variables[0])
         #   9
         p36_set_j = pr_deriv(pr_ihx_cold, variables[15], variables[10])
         #   10
@@ -280,8 +288,8 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
 
         # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
         #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
-        #       h38, h39, h28, h29, p38, p39, p28, p29,     power_cond])]
-        #        16,  17   18   19   20   21   22   23          24
+        #       h38, h39, h28, h29, p38, p39, p28, p29])]
+        #        16,  17   18   19   20   21   22   23
 
         jacobian[0, 0] = t31_calc_comp_j["h_1"]  # derivative of t31_calc_comp with respect to h36
         jacobian[0, 10] = t31_calc_comp_j["p_1"]  # derivative of t31_calc_comp with respect to p36
@@ -334,10 +342,19 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         jacobian[6, 6] = t21_set_j["h"]  # derivative of t21_set with respect to h21
         jacobian[7, 7] = t22_set_j["h"]  # derivative of t22_set with respect to h22
         jacobian[7, 14] = t22_set_j["p"]  # derivative of t22_set with respect to p22
-        jacobian[8, 3] = t33_calc_ihx_j["h_1"]  # derivative of t33_calc_ihx with respect to h32
-        jacobian[8, 8] = t33_calc_ihx_j["h_2"]  # derivative of t33_calc_ihx with respect to h33
-        jacobian[8, 9] = t33_calc_ihx_j["h_3"]  # derivative of t33_calc_ihx with respect to h35
-        jacobian[8, 0] = t33_calc_ihx_j["h_4"]  # derivative of t33_calc_ihx with respect to h36
+        if adex and config["ihx"]:
+            jacobian[8, 3] = t33_calc_ihx_j["h_hot_in"]  # derivative of t36_set with respect to h36
+            jacobian[8, 8] = t33_calc_ihx_j["h_hot_out"]  # derivative of t36_set with respect to p36
+            jacobian[8, 11] = t33_calc_ihx_j["p_hot_out"]  # derivative of t36_set with respect to h36
+            jacobian[8, 9] = t33_calc_ihx_j["h_cold_in"]  # derivative of t36_set with respect to p36
+            jacobian[8, 15] = t33_calc_ihx_j["p_cold_in"]  # derivative of t36_set with respect to h36
+            jacobian[8, 0] = t33_calc_ihx_j["h_cold_out"]  # derivative of t36_set with respect to p36
+            jacobian[8, 10] = t33_calc_ihx_j["p_cold_out"]  # derivative of t36_set with respect to h36
+        else:
+            jacobian[8, 3] = t33_calc_ihx_j["h_1"]  # derivative of t33_calc_ihx with respect to h32
+            jacobian[8, 8] = t33_calc_ihx_j["h_2"]  # derivative of t33_calc_ihx with respect to h33
+            jacobian[8, 9] = t33_calc_ihx_j["h_3"]  # derivative of t33_calc_ihx with respect to h35
+            jacobian[8, 0] = t33_calc_ihx_j["h_4"]  # derivative of t33_calc_ihx with respect to h36
         jacobian[9, 10] = p36_set_j["p_2"]  # derivative of p36_set with respect to p36
         jacobian[9, 15] = p36_set_j["p_1"]  # derivative of p36_set with respect to p35
         jacobian[10, 11] = p33_set_j["p_2"]  # derivative of p33_set with respect to p33
@@ -390,8 +407,8 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         #print(variables)
     # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
     #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
-    #       h38, h39, h28, h29, p38, p39, p28, p29,     power_cond])]
-    #        16,  17   18   19   20   21   22   23          24
+    #       h38, h39, h28, h29, p38, p39, p28, p29])]
+    #        16,  17   18   19   20   21   22   23
 
     p31 = variables[2]
     p32 = target_p32
@@ -475,9 +492,11 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
     heat_cond = df_streams.loc[21, "m [kg/s]"] * (df_streams.loc[22, "h [kJ/kg]"] - df_streams.loc[21, "h [kJ/kg]"])
     power_cond = (df_streams.loc[31, "m [kg/s]"] * (df_streams.loc[31, "h [kJ/kg]"] - df_streams.loc[32, "h [kJ/kg]"])
                   + df_streams.loc[21, "m [kg/s]"] * (df_streams.loc[21, "h [kJ/kg]"] - df_streams.loc[22, "h [kJ/kg]"]))
+    power_ihx = df_streams.loc[31, "m [kg/s]"] * (df_streams.loc[32, "h [kJ/kg]"] - df_streams.loc[33, "h [kJ/kg]"] +
+                                                  df_streams.loc[35, "h [kJ/kg]"] - df_streams.loc[36, "h [kJ/kg]"])
     power_val = df_streams.loc[31, "m [kg/s]"] * (df_streams.loc[33, "h [kJ/kg]"] - df_streams.loc[34, "h [kJ/kg]"])
 
-    if abs(power_comp+heat_eva-heat_cond-power_cond-power_val) > 1e-4:
+    if abs(power_comp+heat_eva-heat_cond-power_cond-power_ihx-power_val) > 1e-4:
         print("Energy balances are not fulfilled! :(")
 
     if plot:
