@@ -426,8 +426,8 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
     h32 = variables[3]
     h33 = variables[8]
     h34 = variables[12]
-    h36 = variables[0]
     h35 = variables[9]
+    h36 = variables[0]
     h21 = variables[6]
     h22 = variables[7]
     h38 = variables[16]
@@ -521,7 +521,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
     return df_streams, t_pinch_cond_sh, cop
 
 
-def exergy_analysis(t0, p0, df):
+def exergy_analysis_hp(t0, p0, df):
 
     h0_wf = PSI("H", "T", t0, "P", p0, df.loc[31, 'fluid']) * 1e-3
     s0_wf = PSI("S", "T", t0, "P", p0, df.loc[31, 'fluid'])
@@ -622,7 +622,7 @@ def find_opt_p32(p32_opt_start, min_t_diff_cond_start, config, label, adex=False
     return p32_opt
 
 
-def set_adex_config(*args):
+def set_adex_hp_config(*args):
     # Define all keys with a default value of False
     config_keys = ['comp', 'cond', 'ihx', 'val', 'eva']
     config = {key: False for key in config_keys}
@@ -653,7 +653,7 @@ def perform_adex_hp(p32_start, config, label, df_ed, adex=False, save=False, pri
     [df_opt, _, _] = hp_simultaneous(p32_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
     t0 = 283.15   # K
     p0 = 1.013e5  # Pa
-    [epsilon_dict, ed_dict] = exergy_analysis(t0, p0, df_opt)
+    [epsilon_dict, ed_dict] = exergy_analysis_hp(t0, p0, df_opt)
     for key, value in ed_dict.items():
         df_ed.loc[(label, key), "ED [kW]"] = value
     if calc_epsilon:
@@ -682,23 +682,23 @@ def main_serial():
     df_ed = pd.DataFrame(columns=columns, index=multi_index)
 
     # BASE CASE
-    [config_base, label_base] = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
+    [config_base, label_base] = set_adex_hp_config('comp', 'cond', 'ihx', 'val', 'eva')
     perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
 
     # IDEAL CASE
-    [config_base, label_base] = set_adex_config()
+    [config_base, label_base] = set_adex_hp_config()
     perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- single components
     components = ['comp', 'cond', 'ihx', 'val', 'eva']
     for component in components:
-        config_i, label_i = set_adex_config(component)
+        config_i, label_i = set_adex_hp_config(component)
         perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- pair of components
     component_pairs = list(itertools.combinations(components, 2))
     for pair in component_pairs:
-        config_i, label_i = set_adex_config(*pair)
+        config_i, label_i = set_adex_hp_config(*pair)
         perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
 
     # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
@@ -724,7 +724,7 @@ def main_multiprocess():
     output_buffer = manager.list()
 
     # BASE CASE
-    [config_base, label_base] = set_adex_config('comp', 'cond', 'ihx', 'val', 'eva')
+    [config_base, label_base] = set_adex_hp_config('comp', 'cond', 'ihx', 'val', 'eva')
     perform_adex_hp(13e5, config_base, label_base, df_ed_base, adex=False, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
 
     tasks = []
@@ -733,19 +733,19 @@ def main_multiprocess():
     with multiprocessing.Pool() as pool:
 
         # Ideal Case
-        config_ideal, label_ideal = set_adex_config()
+        config_ideal, label_ideal = set_adex_hp_config()
         tasks.append((config_ideal, label_ideal, df_ed_i, True, True, True, True, output_buffer))
 
         # Advanced Exergy Analysis -- single components
         components = ['comp', 'cond', 'ihx', 'val', 'eva']
         for component in components:
-            config_i, label_i = set_adex_config(component)
+            config_i, label_i = set_adex_hp_config(component)
             tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
 
         # Advanced Exergy Analysis -- pair of components
         component_pairs = list(itertools.combinations(components, 2))
         for pair in component_pairs:
-            config_i, label_i = set_adex_config(*pair)
+            config_i, label_i = set_adex_hp_config(*pair)
             tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
 
         # Map tasks to the pool
