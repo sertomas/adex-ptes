@@ -128,7 +128,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
         #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
         #       h38, h39, h28, h29, p38, p39, p28, p29])]
-        #        16,  17   18   19   20   21   22   23
+        #        16   17   18   19   20   21   22   23
 
         #   0
         if adex and not config["comp"]:
@@ -289,7 +289,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
         #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
         #       h38, h39, h28, h29, p38, p39, p28, p29])]
-        #        16,  17   18   19   20   21   22   23
+        #        16   17   18   19   20   21   22   23
 
         jacobian[0, 0] = t31_calc_comp_j["h_1"]  # derivative of t31_calc_comp with respect to h36
         jacobian[0, 10] = t31_calc_comp_j["p_1"]  # derivative of t31_calc_comp with respect to p36
@@ -408,7 +408,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
     # TODO [h36, h31, p31, h32, m31, power, h21, h22, h33, h35, p36, p33, h34, p34, p22, p35,
     #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
     #       h38, h39, h28, h29, p38, p39, p28, p29])]
-    #        16,  17   18   19   20   21   22   23
+    #        16   17   18   19   20   21   22   23
 
     p31 = variables[2]
     p32 = target_p32
