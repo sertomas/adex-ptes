@@ -789,7 +789,7 @@ def same_temperature_deriv(h_copy, p_copy, fluid_copy, h_paste, p_paste, fluid_p
 
 def ttd_func(h, p, ttd, fluid):
     T = PSI("T", "H", h, "P", p, fluid)
-    return T + ttd
+    return T + ttd  # use ttd_func(h, p, -ttd, fluid) to subtract the value or
 
 
 def ttd_deriv(h, p, ttd, fluid):
@@ -841,6 +841,24 @@ def eps_compressor_deriv(epsilon, h_1, p_1, h_2, p_2, fluid):
         "p_2": (eps_compressor_func(epsilon, h_1, p_1, h_2, p_2 + d, fluid) - eps_compressor_func(epsilon, h_1, p_1, h_2, p_2 - d, fluid)) / (2 * d),
     }
 
+
+def eps_expander_func(epsilon, h_1, p_1, h_2, p_2, fluid):
+    # epsilon = W / (E1 - E2)
+    #         = (h1 - h2) / (e1 - e2)
+    #         = (h1 - h2) / (h1 - h2 - T0 - (s1 - s2))
+    s_2 = PSI("S", "H", h_2, "P", p_2, fluid)
+    s_1 = PSI("S", "H", h_1, "P", p_1, fluid)
+    return (h_1 - h_2 - T_0 * (s_1 - s_2)) * epsilon - (h_1 - h_2)
+
+
+def eps_expander_deriv(epsilon, h_1, p_1, h_2, p_2, fluid):
+    d = 1e-2
+    return {
+        "h_1": (eps_expander_func(epsilon, h_1 + d, p_1, h_2, p_2, fluid) - eps_expander_func(epsilon, h_1 - d, p_1, h_2, p_2, fluid)) / (2 * d),
+        "h_2": (eps_expander_func(epsilon, h_1, p_1, h_2 + d, p_2, fluid) - eps_expander_func(epsilon, h_1, p_1, h_2 - d, p_2, fluid)) / (2 * d),
+        "p_1": (eps_expander_func(epsilon, h_1, p_1 + d, h_2, p_2, fluid) - eps_expander_func(epsilon, h_1, p_1 - d, h_2, p_2, fluid)) / (2 * d),
+        "p_2": (eps_expander_func(epsilon, h_1, p_1, h_2, p_2 + d, fluid) - eps_expander_func(epsilon, h_1, p_1, h_2, p_2 - d, fluid)) / (2 * d),
+    }
 
 def eps_real_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
                      h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold):
