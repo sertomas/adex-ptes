@@ -79,10 +79,6 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
 
     # TECHNICAL PARAMETERS
     eta_s = 0.85
-    if config['cond']:
-        delta_t_min = 5
-    else:
-        delta_t_min = 0
 
     # PRE-CALCULATION
     t32 = t21 + ttd_l_cond
@@ -139,7 +135,7 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
             t31_calc_comp = eta_s_compressor_func(eta_s, variables[0], variables[10], variables[1], variables[2], wf)
         #   1
         if adex and not config['ihx']:
-            t36_set = same_temperature_func(variables[3], target_p32, wf, variables[0], variables[10], wf)
+            t36_set = same_temperature_func(variables[3], target_p32, wf, variables[0], variables[10], wf)  # t36 = t32
         elif adex and config['ihx']:
             t36_set = eps_real_ihx_func(epsilon['ihx'], variables[3], target_p32, variables[8], variables[11], wf,
                                         variables[9], variables[15], variables[0], variables[10], wf)
@@ -500,15 +496,15 @@ def hp_simultaneous(target_p32, print_results, config, label, adex=False, plot=F
         print('Energy balances are not fulfilled! :(')
 
     if plot:
-        [min_td_cond, max_td_cond] = qt_diagram(df_streams, 'COND', 31, 32, 21, 22, delta_t_min, 'HP',
+        [min_td_cond, max_td_cond] = qt_diagram(df_streams, 'COND', 31, 32, 21, 22, ttd_l_cond, 'HP',
                    plot=plot, case=f'{label}', step_number=100, path=f'outputs/diagrams/adex_hp_qt_cond_{label}.png')
-        [min_td_cond_sh, max_td_cond_sh] = qt_diagram(df_streams, 'COND-SH', 31, 38, 29, 22, delta_t_min, 'HP',
+        [min_td_cond_sh, max_td_cond_sh] = qt_diagram(df_streams, 'COND-SH', 31, 38, 29, 22, ttd_l_cond, 'HP',
                    plot=plot, case=f'{label}', step_number=100)
-        [min_td_cond_eco, max_td_cond_eco] = qt_diagram(df_streams, 'COND-ECO', 39, 32, 21, 28, delta_t_min, 'HP',
+        [min_td_cond_eco, max_td_cond_eco] = qt_diagram(df_streams, 'COND-ECO', 39, 32, 21, 28, ttd_l_cond, 'HP',
                    plot=plot, case=f'{label}', step_number=100)
-        [min_td_cond_eva, max_td_cond_eva] = qt_diagram(df_streams, 'COND-EVA', 38, 39, 28, 29, delta_t_min, 'HP',
+        [min_td_cond_eva, max_td_cond_eva] = qt_diagram(df_streams, 'COND-EVA', 38, 39, 28, 29, ttd_l_eva, 'HP',
                    plot=plot, case=f'{label}', step_number=100, path=f'outputs/diagrams/adex_hp_qt_eva_{label}.png')
-        qt_diagram(df_streams, 'IHX', 32, 33, 35, 36, delta_t_min, 'HP',
+        qt_diagram(df_streams, 'IHX', 32, 33, 35, 36, ttd_u_ihx, 'HP',
                    plot=plot, case=f'{label}', step_number=100, path=f'outputs/diagrams/adex_hp_qt_ihx_{label}.png')
 
     t_pinch_cond_sh = t38-t29
@@ -877,7 +873,7 @@ def conv_exergy_analysis():
     df_components = exergy_analysis_hp(t0, p0, df_opt)
     for col in df_components.columns[:5]:
         df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-    df_components.to_csv(f'outputs/adex_hp/hp_comps_real.csv')  # DO NOT ROUND THIS because it is used for the next steps
+    df_components.to_csv(f'outputs/adex_hp/hp_comps_real.csv')  # DO NOT ROUND THIS because it's used for the next steps
 
 
 multi = True  # true: multiprocess, false: sequential computation
@@ -889,13 +885,16 @@ if __name__ == '__main__':
         main_serial()
 
 
-# TEST OF ONE SINGLE SIMULATION (no optimal p32)
-'''[config_test, label_test] = set_adex_hp_config()  # the compressor is real, the other components are ideal
+# TEST OF ONE SINGLE SIMULATION
+'''[config_test, label_test] = set_adex_hp_config('comp', 'eva', 'val', 'ihx', 'cond')  # the compressor is real, the other components are ideal
 [df_test, target_diff, cop_test] = hp_simultaneous(target_p32=13e5, print_results=True, config=config_test, label=label_test, adex=True)
 p32_opt = find_opt_p32(13e5, target_diff, config=config_test, label=label_test, adex=True)
 [df_opt, _, _] = hp_simultaneous(p32_opt, print_results=True, config=config_test, label=label_test, adex=True)
 t0 = 283.15  # K
 p0 = 1.013e5  # Pa
 df_comps = exergy_analysis_hp(t0, p0, df_opt)
-print(df_comps)'''
+#print(df_comps)
+
+[_, _, _] = hp_simultaneous(target_p32=p32_opt, print_results=True, config=config_test, label=label_test, adex=True)'''
+
 

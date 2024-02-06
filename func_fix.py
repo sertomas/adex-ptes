@@ -860,6 +860,7 @@ def eps_expander_deriv(epsilon, h_1, p_1, h_2, p_2, fluid):
         "p_2": (eps_expander_func(epsilon, h_1, p_1, h_2, p_2 + d, fluid) - eps_expander_func(epsilon, h_1, p_1, h_2, p_2 - d, fluid)) / (2 * d),
     }
 
+
 def eps_real_he_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
                      h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold):
     # epsilon = (E_cold_out - E_cold_in) / (E_hot_in - E_hot_out)
