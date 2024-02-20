@@ -1,6 +1,9 @@
 import numpy as np
-import itertools
 from CoolProp.CoolProp import PropsSI as PSI
+import itertools
+import multiprocessing
+import time
+import io
 import pandas as pd
 from func_fix import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor_deriv, turbo_func, turbo_deriv,
                       he_func, he_deriv, ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func,
@@ -26,7 +29,7 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
         # Handle the exception (e.g., set epsilon to None or a default value)
         epsilon = None
 
-    wf = 'REFPROP::R134a'
+    wf = 'REFPROP::R152a'
     fluid_tes = 'REFPROP::water'
 
     # TES
@@ -85,37 +88,34 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
     t34 = t41 - ttd_u_eva
 
     # STARTING VALUES
-    if config['cond']:  # real cond
-        h31 = 220e3
-        h35 = 465e3
-        h36 = 410e3
-    else:
-        h31 = 213e3
-        h35 = 466e3
-        h36 = 405e3
-    h32 = 215e3
-    h33 = 275e3
-    h34 = 508e3
-    m31 = 12.75
+    h31 = 225e3
+    h32 = 227e3
+    h33 = 250e3
+    h34 = 625e3
+    h35 = 545e3
+    h36 = 515e3
+    h38 = 390e3
+    h39 = 540e3
+
     h41 = 589e3
     h42 = 293e3
+    h48 = 520e3
+    h49 = 390e3
+
+    m31 = 7.8
+
     if config['cond']:  # real cond
-        p31 = 5e5
-        p35 = 5e5
-        p36 = 5e5
+        p31 = 4.38e5
     else:
-        p31 = 4.14e5
-        p35 = 4.14e5
-        p36 = 4.14e5
+        p31 = 3.72e5
     p32 = target_p33/0.97
     p34 = target_p33*0.97
+    p35 = 4e5
+    p36 = 4e5
     p38 = target_p33*0.95
     p39 = target_p33*0.94
+
     p42 = 5e5
-    h48 = 487e3
-    h49 = 358e3
-    h38 = 327e3
-    h39 = 428e3
     p48 = 5e5
     p49 = 5e5
 
@@ -143,10 +143,13 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
             t32_calc_pump = eta_s_compressor_func(eta_s_pump, variables[0], variables[1], variables[2], variables[5], wf)
         # 3
         if adex and not config['ihx']:  # ideal ihx
-            t36_set = same_temperature_func(variables[2], variables[5], wf, variables[3], variables[4], wf)
-        elif adex and config['ihx']:  # real ihx for adv. exergy analysis
-            t36_set = eps_real_ihx_func(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
-                                        variables[2], variables[5], variables[10], target_p33, wf)
+            if config['cond']:
+                t36_set = ttd_temperature_func(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
+            else:
+                t36_set = same_temperature_func(variables[2], variables[5], wf, variables[3], variables[4], wf)
+        # elif adex and config['ihx']:  # real ihx for adv. exergy analysis
+        #     t36_set = eps_real_ihx_func(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
+        #                                 variables[2], variables[5], variables[10], target_p33, wf)
         else:  # real ihx for base design
             t36_set = ttd_temperature_func(ttd_l_ihx, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # 4
@@ -224,10 +227,13 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
             t32_calc_pump_j = eta_s_compressor_deriv(eta_s_pump, variables[0], variables[1], variables[2], variables[5], wf)
         # 3
         if adex and not config['ihx']:  # ideal ihx
-            t36_set_j = same_temperature_deriv(variables[2], variables[5], wf, variables[3], variables[4], wf)
-        elif adex and config['ihx']:  # real ihx for adv. exergy analysis
-            t36_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
-                                           variables[2], variables[5], variables[10], target_p33, wf)
+            if config['cond']:
+                t36_set_j = ttd_temperature_deriv(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
+            else:
+                t36_set_j = same_temperature_deriv(variables[2], variables[5], wf, variables[3], variables[4], wf)
+        # elif adex and config['ihx']:  # real ihx for adv. exergy analysis
+        #     t36_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
+        #                                    variables[2], variables[5], variables[10], target_p33, wf)
         else:  # real ihx for base design
             t36_set_j = ttd_temperature_deriv(ttd_l_ihx, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # 4
@@ -303,14 +309,14 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
             jacobian[3, 5] = t36_set_j['p_copy']  # derivative of t36_set_j with respect to p35
             jacobian[3, 3] = t36_set_j['h_paste']  # derivative of t36_set_j with respect to h36
             jacobian[3, 4] = t36_set_j['p_paste']  # derivative of t36_set_j with respect to p36
-        elif adex and config['ihx']:
-            jacobian[3, 9] = t36_set_j['h_hot_in']  # derivative of t36_set_j with respect to h35
-            jacobian[3, 8] = t36_set_j['p_hot_in']  # derivative of t36_set_j with respect to p35
-            jacobian[3, 3] = t36_set_j['h_hot_out']  # derivative of t36_set_j with respect to h36
-            jacobian[3, 4] = t36_set_j['p_hot_out']  # derivative of t36_set_j with respect to p36
-            jacobian[3, 2] = t36_set_j['h_cold_in']  # derivative of t36_set_j with respect to h32
-            jacobian[3, 5] = t36_set_j['p_cold_in']  # derivative of t36_set_j with respect to p32
-            jacobian[3, 10] = t36_set_j['h_cold_out']  # derivative of t36_set_j with respect to h33
+        # elif adex and config['ihx']:
+        #     jacobian[3, 9] = t36_set_j['h_hot_in']  # derivative of t36_set_j with respect to h35
+        #     jacobian[3, 8] = t36_set_j['p_hot_in']  # derivative of t36_set_j with respect to p35
+        #     jacobian[3, 3] = t36_set_j['h_hot_out']  # derivative of t36_set_j with respect to h36
+        #     jacobian[3, 4] = t36_set_j['p_hot_out']  # derivative of t36_set_j with respect to p36
+        #     jacobian[3, 2] = t36_set_j['h_cold_in']  # derivative of t36_set_j with respect to h32
+        #     jacobian[3, 5] = t36_set_j['p_cold_in']  # derivative of t36_set_j with respect to p32
+        #     jacobian[3, 10] = t36_set_j['h_cold_out']  # derivative of t36_set_j with respect to h33
         else:
             jacobian[3, 2] = t36_set_j['h_copy']  # derivative of t36_set_j with respect to h35
             jacobian[3, 5] = t36_set_j['p_copy']  # derivative of t36_set_j with respect to p35
@@ -491,9 +497,9 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
 
     if plot:
         qt_diagram(df_streams, 'IHX', 35, 36, 32, 33,
-                    ttd_l_ihx, 'ORC', plot=plot, case=f'{label} with ttd_l_ihx={ttd_l_ihx}')
+                   ttd_l_ihx, 'ORC', plot=plot, case=f'{label} with ttd_l_ihx={ttd_l_ihx}')
         [min_td_eva, _] = qt_diagram(df_streams, 'EVA', 41, 42, 33, 34,
-                                     ttd_u_eva, 'ORC', plot=plot, case=f'{label} with ttd_u_eva={ttd_u_eva}')
+                   ttd_u_eva, 'ORC', plot=plot, case=f'{label} with ttd_u_eva={ttd_u_eva}')
 
     t_pinch_eva_sh = t49 - t38
 
@@ -628,6 +634,7 @@ def set_adex_orc_config(*args):
 
 
 def find_opt_p33(p33_opt_start, min_t_diff_eva_start, config, label, adex=False, output_buffer=None):
+    buffer = io.StringIO()  # Create a new buffer
     if config['eva']:
         target_min_td_eva = 5
     else:
@@ -640,35 +647,211 @@ def find_opt_p33(p33_opt_start, min_t_diff_eva_start, config, label, adex=False,
     step = 0
 
     while abs(diff) > tolerance:
-        if p33_opt > 40.5e5:  # because otherwise too close to critical point  # TODO: take pressure of step before
-            print('Optimization interrupted because steam above critical point.')
-            break
         # Adjust p33 based on the difference
         adjustment = -(target_min_td_eva - min_t_diff_eva) * learning_rate
         # adjustment is the smaller, the smaller the difference target_min_td_eva - min_td_eva
         p33_opt += adjustment
 
         [_, min_t_diff_eva, eta] = orc_simultaneous(p33_opt, print_results=False, label=label, config=config, adex=adex)
-        diff_new = abs(min_t_diff_eva - target_min_td_eva)
-        if diff_new > diff:
-            print(f'Optimization interrupted because diff is increasing (new diff = {round(diff_new,6)}). No local solution found.')
-            break  # because otherwise min. temp. diff. not reached (non-linear behaviour & no solution possible)
-        diff = diff_new
+        diff = abs(min_t_diff_eva - target_min_td_eva)
 
         step += 1
-        print(f'Optimization in progress for {label}: step = {step}, diff = {round(diff,6)}, p33 = {round(p33_opt*1e-5, 4)} bar, efficiency = {round(eta, 4)}.')
+        buffer.write( f'Optimization in progress for {label}: step = {step}, diff = {round(diff, 6)}, p12 = {round(p33_opt * 1e-5, 4)} bar, COP = {round(eta, 4)}.\n')
 
-    print(f'Optimization completed successfully in {step} steps!\n')
-    print(f'Optimal p33: {round(p33_opt*1e-5, 4)}, bar.\n')
+    buffer.write(f'Optimization completed successfully in {step} steps!\n')
+    buffer.write(f'Optimal p12: {round(p33_opt * 1e-5, 4)}, bar.\n')
+    
+    if output_buffer is not None:
+        output_buffer.append(buffer.getvalue())
 
     return p33_opt
 
 
+def perform_adex_orc(p33_start, config, label, df_ed, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
+    [_, target_diff, _] = orc_simultaneous(p33_start, print_results=print_results, config=config, label=label, adex=adex)
+    p33_opt = find_opt_p33(p33_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
+    [df_opt, _, _] = orc_simultaneous(p33_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
+    t0 = 283.15   # K
+    p0 = 1.013e5  # Pa
+    df_components = exergy_analysis_orc(t0, p0, df_opt)
+    for component in df_components.index:
+        df_ed.loc[(label, component), 'ED [kW]'] = df_components.loc[component, 'ED [kW]']
+    if calc_epsilon:
+        for col in df_components.columns[:5]:
+            df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
+        if label == "real":
+            df_components.to_csv(f'outputs/adex_orc/orc_comps_{label}.csv')
+        else:
+            df_components.round(4).to_csv(f'outputs/adex_orc/orc_comps_{label}.csv')
+    if df_opt.loc[41, 'T [°C]'] < df_opt.loc[34, 'T [°C]'] - 1e-3:
+        print('Error: Upper temperature difference in EVA is negative!')
+    if df_opt.loc[42, 'T [°C]'] < df_opt.loc[33, 'T [°C]'] - 1e-3:
+        print('Error: Lower temperature difference in EVA is negative!')
+    if df_opt.loc[35, 'T [°C]'] < df_opt.loc[33, 'T [°C]'] - 1e-3:
+        print('Error: Upper temperature difference in IHX is negative!')
+    if df_opt.loc[36, 'T [°C]'] < df_opt.loc[32, 'T [°C]'] - 1e-3:
+        print('Error: Lower temperature difference in IHX is negative!')
+    if save:
+        round(df_opt, 5).to_csv(f'outputs/adex_orc/orc_streams_{label}.csv')
+
+    return df_ed
+
+
+def main_serial():
+    # BEGIN OF MAIN (sequentially) -------------------------------------------------------------------------------------
+    start = time.perf_counter()
+
+    columns = ['ED']
+    multi_index = pd.MultiIndex(levels=[[], []], codes=[[], []], names=['Label', 'Key'])
+    df_ed = pd.DataFrame(columns=columns, index=multi_index)
+
+    # BASE CASE
+    [config_base, label_base] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
+    p33_start_real = 22e5  # bar
+    perform_adex_orc(p33_start_real, config_base, label_base, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
+
+    # IDEAL CASE
+    [config_ideal, label_ideal] = set_adex_orc_config()
+    p33_start_ideal = 28e5  # bar
+    perform_adex_orc(p33_start_ideal, config_ideal, label_ideal, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
+
+    # ADVANCED EXERGY ANALYSIS -- single components
+    components = ['pump', 'eva', 'ihx', 'exp', 'cond']
+    for component in components:
+        config_i, label_i = set_adex_orc_config(component)
+        p33_start_ideal = 28e5  # bar
+        perform_adex_orc(p33_start_ideal, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
+
+    # ADVANCED EXERGY ANALYSIS -- pair of components
+    component_pairs = list(itertools.combinations(components, 2))
+    for pair in component_pairs:
+        config_i, label_i = set_adex_orc_config(*pair)
+        p33_start_ideal = 28e5  # bar
+        perform_adex_orc(p33_start_ideal, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
+
+    # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
+    end = time.perf_counter()
+    print(f'Elapsed time: {round(end - start, 3)} seconds.')
+
+
+def run_orc_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer=None):
+    p33_start = 22e5
+    df_ed = perform_adex_orc(p33_start, config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer)
+    return df_ed
+
+
+
+def main_multiprocess():
+    start = time.perf_counter()
+
+    # Initialize the DataFrame for storing results
+    columns = ['ED [kW]']
+    multi_index = pd.MultiIndex(levels=[[], []], codes=[[], []], names=['Label', 'Key'])
+    df_ed_base = pd.DataFrame(columns=columns, index=multi_index)
+    df_ed_i = pd.DataFrame(columns=columns, index=multi_index)
+    df_ed = pd.DataFrame(columns=columns, index=multi_index)
+
+    # Shared data structure for output
+    manager = multiprocessing.Manager()
+    output_buffer = manager.list()
+
+    # BASE CASE
+    [config_base, label_base] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
+    perform_adex_orc(22e5, config_base, label_base, df_ed_base, adex=False, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
+
+    tasks = []
+
+    # Create a pool of workers
+    with multiprocessing.Pool() as pool:
+
+        # Ideal Case
+        config_ideal, label_ideal = set_adex_orc_config()
+        tasks.append((config_ideal, label_ideal, df_ed_i, True, True, True, True, output_buffer))
+
+        # Advanced Exergy Analysis -- single components
+        components = ['pump', 'eva', 'ihx', 'exp', 'cond']
+        for component in components:
+            config_i, label_i = set_adex_orc_config(component)
+            tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
+
+        # Advanced Exergy Analysis -- pair of components
+        component_pairs = list(itertools.combinations(components, 2))
+        for pair in component_pairs:
+            config_i, label_i = set_adex_orc_config(*pair)
+            tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
+
+        # Map tasks to the pool
+        results = pool.starmap(run_orc_adex, tasks)
+
+    print(round(time.perf_counter() - start, 3))
+
+    # Collect and concatenate results
+    for result in results:
+        df_result = pd.DataFrame(result, columns=columns)
+        df_ed = pd.concat([df_ed, df_result])
+
+    df_ed = pd.concat([df_ed_base, df_ed])
+
+    # Print the stored outputs after all tasks are done
+    for output in output_buffer:
+        print(output)
+
+    for col in df_ed.columns[:]:
+        df_ed[col] = pd.to_numeric(df_ed[col], errors='coerce')
+    df_ed.round(4).to_csv('outputs/adex_orc/orc_adex_ed.csv')
+
+    # Generate combinations
+    combinations = []
+    for component in components:
+        combinations.append((component, ''))  # Component considered alone
+        for other_component in components:
+            if component != other_component:
+                combinations.append((component, other_component))
+
+    # Create a MultiIndex
+    multi_index = pd.MultiIndex.from_tuples(combinations, names=['k', 'l'])
+
+    # Initialize DataFrame with MultiIndex
+    df_adex_analysis = pd.DataFrame(index=multi_index)
+    epsilon = pd.read_csv('outputs/adex_orc/orc_comps_real.csv', index_col=0)['epsilon']
+    epsilon['cond'] = float('nan')
+
+    for k in components:
+        df_real = pd.read_csv(f'outputs/adex_orc/orc_streams_real.csv', index_col=0)
+        df_k = pd.read_csv(f'outputs/adex_orc/orc_streams_{k}.csv', index_col=0)
+        df_adex_analysis.loc[(k, ''), 'ED [kW]'] = df_ed.loc[('real', k), 'ED [kW]']
+        df_adex_analysis.loc[(k, ''), 'epsilon [%]'] = epsilon[k] * 100
+        df_adex_analysis.loc[(k, ''), 'ED^EN [kW]'] = df_ed.loc[(k, k), 'ED [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED^EX [kW]'] = df_adex_analysis.loc[(k, ''), 'ED [kW]']-df_adex_analysis.loc[(k, ''), 'ED^EN [kW]']
+        df_adex_analysis.loc[(k, ''), 'm^EN [kg/s]'] = df_k.loc[11, 'm [kg/s]']
+        df_adex_analysis.loc[(k, ''), 'm^EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k.loc[11, 'm [kg/s]']
+        sum_ed_ex_l = 0
+        for l in components:
+            if k != l:
+                k_l = f'{k}_{l}'
+                if (k_l, l) not in df_ed.index:
+                    k_l = f'{l}_{k}'
+                df_k_l = pd.read_csv(f'outputs/adex_orc/orc_streams_{k_l}.csv', index_col=0)
+                df_adex_analysis.loc[(k, l), 'm^EN [kg/s]'] = df_k_l.loc[11, 'm [kg/s]']
+                df_adex_analysis.loc[(k, l), 'm^EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k_l.loc[11, 'm [kg/s]']
+                df_adex_analysis.loc[(k, l), 'ED^kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
+                df_adex_analysis.loc[(k, l), 'ED^kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
+                df_adex_analysis.loc[(k, l), 'ED^EX,l [kW]'] = df_adex_analysis.loc[(k, ''), 'ED^EN [kW]'] - df_adex_analysis.loc[(k, l), 'ED^kl [kW]']
+                sum_ed_ex_l += df_adex_analysis.loc[(k, l), 'ED^EX,l [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED^MEXO [kW]'] = df_adex_analysis.loc[(k, ''), 'ED^EX [kW]'] - sum_ed_ex_l
+    df_adex_analysis.round(2).to_csv('outputs/adex_orc/orc_adex_analysis.csv')
+
+    end = time.perf_counter()
+    print(f'Elapsed time: {round(end - start, 3)} seconds.')
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# BASE CASE and optimal p33
 t0 = 283.15  # K
 p0 = 1.013e5  # Pa
 
-'''[config_real, label_real] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
-p33_start = 23e5  # bar
+[config_real, label_real] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
+p33_start = 22e5  # bar
 [_, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_real, label=label_real)
 p33_opt = find_opt_p33(p33_start, target_diff, config=config_real, label=label_real, adex=False)
 [df_opt, _, _] = orc_simultaneous(p33_opt, print_results=True, config=config_real, label=f'optimal {label_real}')
@@ -677,65 +860,50 @@ for col in df_components.columns[:5]:
     df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
 df_components.to_csv(f'outputs/adex_orc/orc_comps_real.csv')
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+# ADVANCED EXERGY ANALYSIS
+multi = True  # true: multiprocess, false: sequential computation
+
+if __name__ == '__main__':
+    if multi:
+        main_multiprocess()
+    else:
+        main_serial()
+    
+    
+
+'''
+t0 = 283.15  # K
+p0 = 1.013e5  # Pa
+
+[config_real, label_real] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
+p33_start = 22e5  # bar
+[_, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_real, label=label_real)
+p33_opt = find_opt_p33(p33_start, target_diff, config=config_real, label=label_real, adex=False)
+[df_opt, _, _] = orc_simultaneous(p33_opt, print_results=True, config=config_real, label=f'optimal {label_real}', plot=True)
+df_components = exergy_analysis_orc(t0, p0, df_opt)
+for col in df_components.columns[:5]:
+    df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
+df_components.to_csv(f'outputs/adex_orc/orc_comps_real.csv')
+
+# IDEAL CASE and optimal p33
 [config_ideal, label_ideal] = set_adex_orc_config()
-p33_start = 28e5  # bar
+p33_start = 29e5  # bar
 [df_opt, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_ideal, label=label_ideal, adex=True)
 p33_opt = find_opt_p33(p33_start, target_diff, config=config_ideal, label=label_ideal, adex=True)
 [df_opt, _, _] = orc_simultaneous(p33_opt, print_results=True, config=config_ideal, label=f'optimal {label_ideal}', adex=True, plot=True)
 df_components = exergy_analysis_orc(t0, p0, df_opt)
 for col in df_components.columns[:5]:
     df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-df_components.round(4).to_csv(f'outputs/adex_orc/orc_comps_ideal.csv')'''
-
-'''[config_real, label_real] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
-p33_start = 23.6e5  # bar
-[_, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_real, label=label_real)
-p33_opt = find_opt_p33(p33_start, target_diff, config=config_real, label=label_real, adex=False)
-[df_opt, _, _] = orc_simultaneous(p33_opt, print_results=True, config=config_real, label=f'optimal {label_real}')
-df_components = exergy_analysis_orc(t0, p0, df_opt)
-for col in df_components.columns[:5]:
-    df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-df_components.to_csv(f'outputs/adex_orc/orc_comps_real.csv')
-
-p = 27.5e5
-
-[config_real, label_real] = set_adex_orc_config()
-[_, target_diff, _] = orc_simultaneous(p, print_results=True, config=config_real, label=label_real, plot=True)
-print(target_diff)
-
-[config_real, label_real] = set_adex_orc_config('ihx', 'cond')
-[_, target_diff, _] = orc_simultaneous(p, print_results=True, config=config_real, label=label_real, plot=True)
-print(target_diff)'''
+df_components.round(4).to_csv(f'outputs/adex_orc/orc_comps_ideal.csv')
 
 
-# [config_real, label_real] = set_adex_orc_config('pump', 'exp')
-# [_, target_diff, _] = orc_simultaneous(27.5e5, print_results=True, config=config_real, label=label_real, plot=True)
-
-'''for start_value in range(200, 300, 1):
-    try:
-        [config_real, label_real] = set_adex_orc_config('cond')
-        try:
-            [_, _, eff] = orc_simultaneous(start_value*1e4, print_results=True, config=config_real, label=label_real, plot=False)
-        except Exception as e:
-            print(f"An error occurred in orc_simultaneous: {e}")
-    except Exception as e:
-        print(f"An error occurred in set_adex_orc_config: {e}")'''
-
-
-'''[config_real, label_real] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
-p33_start = 23.6e5  # bar
-[_, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_real, label=label_real)
-
-[config_ideal, label_ideal] = set_adex_orc_config()
-p33_start = 23.6e5  # bar
-[_, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_ideal, label=label_ideal)'''
-
-p33_start = 40.5e5
-
+# Advanced Exergy Analysis -- single components
 components = ['pump', 'eva', 'ihx', 'exp', 'cond']
 for component in components:
     config_i, label_i = set_adex_orc_config(component)
-    [_, diff, eta] = orc_simultaneous(p33_start, print_results=True, config=config_i, label=label_i, adex=True, plot=True)
+    [_, diff, eta] = orc_simultaneous(p33_start, print_results=True, config=config_i, label=label_i, adex=True)
     print(eta)
     if component == 'eva':
         minimum = 5
@@ -749,7 +917,7 @@ for component in components:
 component_pairs = list(itertools.combinations(components, 2))
 for pair in component_pairs:
     config_i, label_i = set_adex_orc_config(*pair)
-    [_, diff, eta] = orc_simultaneous(p33_start, print_results=True, config=config_i, label=label_i, adex=True, plot=True)
+    [_, diff, eta] = orc_simultaneous(p33_start, print_results=True, config=config_i, label=label_i, adex=True)
     print(eta)
     if component == 'eva':
         minimum = 5
@@ -760,14 +928,4 @@ for pair in component_pairs:
         print(diff)
 
 
-[config_real, label_real] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
-p33_start = 40.5e5  # bar
-[_, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_real, label=label_real)
-p33_opt = find_opt_p33(p33_start, target_diff, config=config_real, label=label_real, adex=False)
-[df_opt, diff, eta] = orc_simultaneous(p33_opt, print_results=True, config=config_real, label=f'optimal {label_real}', plot=True)
-df_components = exergy_analysis_orc(t0, p0, df_opt)
-for col in df_components.columns[:5]:
-    df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-df_components.to_csv(f'outputs/adex_orc/orc_comps_real.csv')
-print(eta)
-print(diff)
+'''

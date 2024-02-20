@@ -642,10 +642,10 @@ def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False
     p12_opt = p12_opt_start
     tolerance = 1e-3  # relative to min temperature difference
     learning_rate = 1e4  # relative to p12
-    diff = abs(min_t_diff_cond_start - target_min_td_cond)
+    diff = min_t_diff_cond_start - target_min_td_cond
     step = 0
 
-    while diff > tolerance:
+    while abs(diff) > tolerance:
         # Adjust p12 based on the difference
         adjustment = (target_min_td_cond - min_t_diff_cond) * learning_rate
         # adjustment is the smaller, the smaller the difference target_min_td_cond - min_td_cond
@@ -734,8 +734,8 @@ def main_serial():
     perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
 
     # IDEAL CASE
-    [config_base, label_base] = set_adex_hp_config()
-    perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
+    [config_ideal, label_ideal] = set_adex_hp_config()
+    perform_adex_hp(13e5, config_ideal, label_ideal, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- single components
     components = ['comp', 'cond', 'ihx', 'val', 'eva']
@@ -752,7 +752,7 @@ def main_serial():
     # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
 
 
-def run_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer=None):
+def run_hp_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer=None):
     df_ed = perform_adex_hp(13e5, config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer)
     return df_ed
 
@@ -797,7 +797,7 @@ def main_multiprocess():
             tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
 
         # Map tasks to the pool
-        results = pool.starmap(run_adex, tasks)
+        results = pool.starmap(run_hp_adex, tasks)
 
     print(round(time.perf_counter() - start, 3))
 
