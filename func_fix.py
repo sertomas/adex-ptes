@@ -787,6 +787,27 @@ def same_temperature_deriv(h_copy, p_copy, fluid_copy, h_paste, p_paste, fluid_p
     }
 
 
+def ttd_temperature_func(ttd, h_copy, p_copy, fluid_copy, h_paste, p_paste, fluid_paste):
+    t_copy = PSI("T", "H", h_copy, "P", p_copy, fluid_copy)
+    h_paste_calc = PSI("H", "T", t_copy + ttd, "P", p_paste, fluid_paste)
+    return h_paste_calc - h_paste
+
+
+def ttd_temperature_deriv(ttd, h_copy, p_copy, fluid_copy, h_paste, p_paste, fluid_paste):
+    d = 1e-2
+    return {
+        "h_copy": (ttd_temperature_func(ttd, h_copy + d, p_copy, fluid_copy, h_paste, p_paste, fluid_paste) -
+                   ttd_temperature_func(ttd, h_copy - d, p_copy, fluid_copy, h_paste, p_paste, fluid_paste)) / (2 * d),
+        "p_copy": (ttd_temperature_func(ttd, h_copy, p_copy + d, fluid_copy, h_paste, p_paste, fluid_paste) -
+                   ttd_temperature_func(ttd, h_copy, p_copy - d, fluid_copy, h_paste, p_paste, fluid_paste)) / (2 * d),
+        "h_paste": (ttd_temperature_func(ttd, h_copy, p_copy, fluid_copy, h_paste + d, p_paste, fluid_paste) -
+                   ttd_temperature_func(ttd, h_copy, p_copy, fluid_copy, h_paste - d, p_paste, fluid_paste)) / (2 * d),
+        "p_paste": (ttd_temperature_func(ttd, h_copy, p_copy, fluid_copy, h_paste, p_paste + d, fluid_paste) -
+                   ttd_temperature_func(ttd, h_copy, p_copy, fluid_copy, h_paste, p_paste - d, fluid_paste)) / (2 * d)
+
+    }
+
+
 def ttd_func(h, p, ttd, fluid):
     T = PSI("T", "H", h, "P", p, fluid)
     return T + ttd  # use ttd_func(h, p, -ttd, fluid) to subtract the value or
