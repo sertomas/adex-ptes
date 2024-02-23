@@ -530,11 +530,12 @@ def exergy_analysis_orc(t0, p0, df):
                    df.loc[31, 'm [kg/s]'] * (df.loc[36, 's [J/kgK]'] - df.loc[35, 's [J/kgK]'])) * 1e-3
     # ED_EXP = T0 * (s35 - s34)
     ed_exp = t0 * (df.loc[31, 'm [kg/s]'] * (df.loc[35, 's [J/kgK]'] - df.loc[34, 's [J/kgK]'])) * 1e-3
-    # ED_EVA = Q * (1 - T0/Tb)
-    temp_boundary = ((df.loc[31, 'h [kJ/kg]'] - df.loc[36, 'h [kJ/kg]'])
-                     / (df.loc[31, 's [J/kgK]'] - df.loc[36, 's [J/kgK]']) * 1e3)
-    ed_cond = (df.loc[31, 'm [kg/s]'] * (df.loc[36, 'h [kJ/kg]'] - df.loc[31, 'h [kJ/kg]'])) * (
-                1 - t0 / temp_boundary)
+    # ED_EVA = E36 - E31
+    # temp_boundary = ((df.loc[31, 'h [kJ/kg]'] - df.loc[36, 'h [kJ/kg]'])
+    #                  / (df.loc[31, 's [J/kgK]'] - df.loc[36, 's [J/kgK]']) * 1e3)
+    # ed_cond = (df.loc[31, 'm [kg/s]'] * (df.loc[36, 'h [kJ/kg]'] - df.loc[31, 'h [kJ/kg]'])) * (
+    #             1 - t0 / temp_boundary)
+    ed_cond = (df.loc[31, 'm [kg/s]'] * (df.loc[36, 'e^PH [kJ/kg]'] - df.loc[31, 'e^PH [kJ/kg]']))
 
     ed = {
         'pump': ed_pump,
@@ -733,9 +734,51 @@ def main_serial():
     end = time.perf_counter()
     print(f'Elapsed time: {round(end - start, 3)} seconds.')
 
+    # Generate combinations
+    combinations = []
+    for component in components:
+        combinations.append((component, ''))  # Component considered alone
+        for other_component in components:
+            if component != other_component:
+                combinations.append((component, other_component))
+
+    multi_index = pd.MultiIndex.from_tuples(combinations, names=['k', 'l'])
+
+    # Initialize DataFrame with MultiIndex
+    df_adex_analysis = pd.DataFrame(index=multi_index)
+    epsilon = pd.read_csv('outputs/adex_orc/orc_comps_real.csv', index_col=0)['epsilon']
+    epsilon['cond'] = float('nan')
+
+    for k in components:
+        df_real = pd.read_csv(f'outputs/adex_orc/orc_streams_real.csv', index_col=0)
+        df_k = pd.read_csv(f'outputs/adex_orc/orc_streams_{k}.csv', index_col=0)
+        df_adex_analysis.loc[(k, ''), 'ED [kW]'] = df_ed.loc[('real', k), 'ED [kW]']
+        df_adex_analysis.loc[(k, ''), 'epsilon [%]'] = epsilon[k] * 100
+        df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] = df_ed.loc[(k, k), 'ED [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED EX [kW]'] = df_adex_analysis.loc[(k, ''), 'ED [kW]'] - df_adex_analysis.loc[
+            (k, ''), 'ED EN [kW]']
+        df_adex_analysis.loc[(k, ''), 'm EN [kg/s]'] = df_k.loc[31, 'm [kg/s]']
+        df_adex_analysis.loc[(k, ''), 'm EX [kg/s]'] = df_real.loc[31, 'm [kg/s]'] - df_k.loc[31, 'm [kg/s]']
+        sum_ed_ex_l = 0
+        for l in components:
+            if k != l:
+                k_l = f'{k}_{l}'
+                if (k_l, l) not in df_ed.index:
+                    k_l = f'{l}_{k}'
+                df_k_l = pd.read_csv(f'outputs/adex_orc/orc_streams_{k_l}.csv', index_col=0)
+                df_adex_analysis.loc[(k, l), 'm EN [kg/s]'] = df_k_l.loc[31, 'm [kg/s]']
+                df_adex_analysis.loc[(k, l), 'm EX [kg/s]'] = df_real.loc[31, 'm [kg/s]'] - df_k_l.loc[31, 'm [kg/s]']
+                df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
+                df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
+                df_adex_analysis.loc[(k, l), 'ED EX l [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] - \
+                                                               df_adex_analysis.loc[(k, l), 'ED kl [kW]']
+                sum_ed_ex_l += df_adex_analysis.loc[(k, l), 'ED EX l [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED MEXO [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EX [kW]'] - sum_ed_ex_l
+    df_adex_analysis.round(2).to_csv('outputs/adex_orc/orc_adex_analysis.csv')
+
 
 def run_orc_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer=None):
-    p33_start = 22e5
+    p33_start = 28e5
     df_ed = perform_adex_orc(p33_start, config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer)
     return df_ed
 
@@ -821,10 +864,10 @@ def main_multiprocess():
         df_k = pd.read_csv(f'outputs/adex_orc/orc_streams_{k}.csv', index_col=0)
         df_adex_analysis.loc[(k, ''), 'ED [kW]'] = df_ed.loc[('real', k), 'ED [kW]']
         df_adex_analysis.loc[(k, ''), 'epsilon [%]'] = epsilon[k] * 100
-        df_adex_analysis.loc[(k, ''), 'ED^EN [kW]'] = df_ed.loc[(k, k), 'ED [kW]']
-        df_adex_analysis.loc[(k, ''), 'ED^EX [kW]'] = df_adex_analysis.loc[(k, ''), 'ED [kW]']-df_adex_analysis.loc[(k, ''), 'ED^EN [kW]']
-        df_adex_analysis.loc[(k, ''), 'm^EN [kg/s]'] = df_k.loc[11, 'm [kg/s]']
-        df_adex_analysis.loc[(k, ''), 'm^EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k.loc[11, 'm [kg/s]']
+        df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] = df_ed.loc[(k, k), 'ED [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED EX [kW]'] = df_adex_analysis.loc[(k, ''), 'ED [kW]']-df_adex_analysis.loc[(k, ''), 'ED EN [kW]']
+        df_adex_analysis.loc[(k, ''), 'm EN [kg/s]'] = df_k.loc[31, 'm [kg/s]']
+        df_adex_analysis.loc[(k, ''), 'm EX [kg/s]'] = df_real.loc[31, 'm [kg/s]'] - df_k.loc[31, 'm [kg/s]']
         sum_ed_ex_l = 0
         for l in components:
             if k != l:
@@ -832,13 +875,13 @@ def main_multiprocess():
                 if (k_l, l) not in df_ed.index:
                     k_l = f'{l}_{k}'
                 df_k_l = pd.read_csv(f'outputs/adex_orc/orc_streams_{k_l}.csv', index_col=0)
-                df_adex_analysis.loc[(k, l), 'm^EN [kg/s]'] = df_k_l.loc[11, 'm [kg/s]']
-                df_adex_analysis.loc[(k, l), 'm^EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k_l.loc[11, 'm [kg/s]']
-                df_adex_analysis.loc[(k, l), 'ED^kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
-                df_adex_analysis.loc[(k, l), 'ED^kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
-                df_adex_analysis.loc[(k, l), 'ED^EX,l [kW]'] = df_adex_analysis.loc[(k, ''), 'ED^EN [kW]'] - df_adex_analysis.loc[(k, l), 'ED^kl [kW]']
-                sum_ed_ex_l += df_adex_analysis.loc[(k, l), 'ED^EX,l [kW]']
-        df_adex_analysis.loc[(k, ''), 'ED^MEXO [kW]'] = df_adex_analysis.loc[(k, ''), 'ED^EX [kW]'] - sum_ed_ex_l
+                df_adex_analysis.loc[(k, l), 'm EN [kg/s]'] = df_k_l.loc[31, 'm [kg/s]']
+                df_adex_analysis.loc[(k, l), 'm EX [kg/s]'] = df_real.loc[31, 'm [kg/s]'] - df_k_l.loc[31, 'm [kg/s]']
+                df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
+                df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
+                df_adex_analysis.loc[(k, l), 'ED EX l [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] - df_adex_analysis.loc[(k, l), 'ED kl [kW]']
+                sum_ed_ex_l += df_adex_analysis.loc[(k, l), 'ED EX l [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED MEXO [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EX [kW]'] - sum_ed_ex_l
     df_adex_analysis.round(2).to_csv('outputs/adex_orc/orc_adex_analysis.csv')
 
     end = time.perf_counter()

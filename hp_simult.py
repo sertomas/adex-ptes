@@ -539,10 +539,11 @@ def exergy_analysis_hp(t0, p0, df):
                    df.loc[11, 'm [kg/s]'] * (df.loc[16, 's [J/kgK]'] - df.loc[15, 's [J/kgK]'])) * 1e-3
     # ED_VAL = T0 * (s14 - s13)
     ed_val = t0 * (df.loc[11, 'm [kg/s]'] * (df.loc[14, 's [J/kgK]'] - df.loc[13, 's [J/kgK]'])) * 1e-3
-    # ED_EVA = - Q * (1 - T0/Tb)    '- Q' because exergy associated to heat goes in the other direction
-    temp_boundary = ((df.loc[15, 'h [kJ/kg]'] - df.loc[14, 'h [kJ/kg]'])
-                     / (df.loc[15, 's [J/kgK]'] - df.loc[14, 's [J/kgK]']) * 1e3)
-    ed_eva = - (df.loc[11, 'm [kg/s]'] * (df.loc[15, 'h [kJ/kg]'] - df.loc[14, 'h [kJ/kg]'])) * (1 - t0 / temp_boundary)
+    # ED_EVA = E14 - E15
+    # temp_boundary = ((df.loc[15, 'h [kJ/kg]'] - df.loc[14, 'h [kJ/kg]'])
+    #                  / (df.loc[15, 's [J/kgK]'] - df.loc[14, 's [J/kgK]']) * 1e3)
+    # ed_eva = - (df.loc[11, 'm [kg/s]'] * (df.loc[15, 'h [kJ/kg]'] - df.loc[14, 'h [kJ/kg]'])) * (1 - t0 / temp_boundary)
+    ed_eva = (df.loc[11, 'm [kg/s]'] * (df.loc[14, 'e^PH [kJ/kg]'] - df.loc[15, 'e^PH [kJ/kg]']))
 
     ed = {
         'comp': ed_comp,
@@ -837,10 +838,10 @@ def main_multiprocess():
         df_k = pd.read_csv(f'outputs/adex_hp/hp_streams_{k}.csv', index_col=0)
         df_adex_analysis.loc[(k, ''), 'ED [kW]'] = df_ed.loc[('real', k), 'ED [kW]']
         df_adex_analysis.loc[(k, ''), 'epsilon [%]'] = epsilon[k] * 100
-        df_adex_analysis.loc[(k, ''), 'ED^EN [kW]'] = df_ed.loc[(k, k), 'ED [kW]']
-        df_adex_analysis.loc[(k, ''), 'ED^EX [kW]'] = df_adex_analysis.loc[(k, ''), 'ED [kW]']-df_adex_analysis.loc[(k, ''), 'ED^EN [kW]']
-        df_adex_analysis.loc[(k, ''), 'm^EN [kg/s]'] = df_k.loc[11, 'm [kg/s]']
-        df_adex_analysis.loc[(k, ''), 'm^EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k.loc[11, 'm [kg/s]']
+        df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] = df_ed.loc[(k, k), 'ED [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED EX [kW]'] = df_adex_analysis.loc[(k, ''), 'ED [kW]']-df_adex_analysis.loc[(k, ''), 'ED EN [kW]']
+        df_adex_analysis.loc[(k, ''), 'm EN [kg/s]'] = df_k.loc[11, 'm [kg/s]']
+        df_adex_analysis.loc[(k, ''), 'm EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k.loc[11, 'm [kg/s]']
         sum_ed_ex_l = 0
         for l in components:
             if k != l:
@@ -848,13 +849,13 @@ def main_multiprocess():
                 if (k_l, l) not in df_ed.index:
                     k_l = f'{l}_{k}'
                 df_k_l = pd.read_csv(f'outputs/adex_hp/hp_streams_{k_l}.csv', index_col=0)
-                df_adex_analysis.loc[(k, l), 'm^EN [kg/s]'] = df_k_l.loc[11, 'm [kg/s]']
-                df_adex_analysis.loc[(k, l), 'm^EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k_l.loc[11, 'm [kg/s]']
-                df_adex_analysis.loc[(k, l), 'ED^kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
-                df_adex_analysis.loc[(k, l), 'ED^kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
-                df_adex_analysis.loc[(k, l), 'ED^EX,l [kW]'] = df_adex_analysis.loc[(k, ''), 'ED^EN [kW]'] - df_adex_analysis.loc[(k, l), 'ED^kl [kW]']
-                sum_ed_ex_l += df_adex_analysis.loc[(k, l), 'ED^EX,l [kW]']
-        df_adex_analysis.loc[(k, ''), 'ED^MEXO [kW]'] = df_adex_analysis.loc[(k, ''), 'ED^EX [kW]'] - sum_ed_ex_l
+                df_adex_analysis.loc[(k, l), 'm EN [kg/s]'] = df_k_l.loc[11, 'm [kg/s]']
+                df_adex_analysis.loc[(k, l), 'm EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k_l.loc[11, 'm [kg/s]']
+                df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
+                df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
+                df_adex_analysis.loc[(k, l), 'ED EX l [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] - df_adex_analysis.loc[(k, l), 'ED kl [kW]']
+                sum_ed_ex_l += df_adex_analysis.loc[(k, l), 'ED EX l [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED MEXO [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EX [kW]'] - sum_ed_ex_l
     df_adex_analysis.round(2).to_csv('outputs/adex_hp/hp_adex_analysis.csv')
 
     end = time.perf_counter()

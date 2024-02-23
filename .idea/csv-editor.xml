@@ -3,21 +3,14 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="/outputs/adex_hp/aa_hp_comps_ideal.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/aa_hp_comps_real.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/outputs/adex_hp/hp_adex_analysis.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_adex_ed.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -136,126 +129,14 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_comp.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_comp_cond.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_comp_eva.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_comp_ihx.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_comp_val.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_cond.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_cond_eva.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_cond_ihx.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_cond_val.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_eva.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_ideal.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_ihx.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_ihx_eva.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_ihx_val.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_real.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_val.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/outputs/adex_hp/hp_epsilon_val_eva.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/outputs/adex_hp/hp_streams_comp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_hp/hp_streams_comp_ihx.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -276,7 +157,56 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/outputs/adex_hp/hp_streams_real.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_orc/orc_adex_analysis.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_orc/orc_comps_eva_ihx.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_orc/orc_comps_exp.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_orc/orc_comps_exp_ihx.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/outputs/adex_orc/orc_comps_ideal.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_orc/orc_comps_ihx.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/adex_orc/orc_comps_pump_cond.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -290,21 +220,42 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/outputs/adex_orc/orc_epsilon_base.csv">
+        <entry key="/outputs/adex_orc/orc_streams_ihx.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/outputs/adex_orc/orc_epsilon_ideal.csv">
+        <entry key="/outputs/adex_orc/orc_streams_real.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/outputs/adex_orc/orc_epsilon_real.csv">
+        <entry key="/outputs/exan/hp_base_exan_connections.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/exan/orc_base_exan_connections.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/hp_base_results.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/outputs/orc_base_results.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
