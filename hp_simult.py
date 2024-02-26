@@ -853,7 +853,7 @@ def main_multiprocess():
                 df_adex_analysis.loc[(k, l), 'm EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k_l.loc[11, 'm [kg/s]']
                 df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
                 df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
-                df_adex_analysis.loc[(k, l), 'ED EX l [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] - df_adex_analysis.loc[(k, l), 'ED kl [kW]']
+                df_adex_analysis.loc[(k, l), 'ED EX l [kW]'] = df_adex_analysis.loc[(k, l), 'ED kl [kW]'] - df_adex_analysis.loc[(k, ''), 'ED EN [kW]']
                 sum_ed_ex_l += df_adex_analysis.loc[(k, l), 'ED EX l [kW]']
         df_adex_analysis.loc[(k, ''), 'ED MEXO [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EX [kW]'] - sum_ed_ex_l
     df_adex_analysis.round(2).to_csv('outputs/adex_hp/hp_adex_analysis.csv')
