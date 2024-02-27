@@ -2,8 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-plt.rc('font', family='Times New Roman', size=20)
-plt.rc('mathtext', fontset='stix')
+plt.rc('font', family='Arial', size=18)
 
 # Load the data
 df_hp_comps_base = pd.read_csv('../adex_hp/hp_comps_real.csv', index_col=0)
@@ -31,11 +30,11 @@ ed_orc = [df_orc_comps_base.loc['pump', 'ED [kW]']/df_orc_comps_base.loc['tot', 
          ]
 
 # Creating custom labels for each component of ed_hp and ed_orc
-labels_hp = ['COMP', 'COND', 'IHX', 'VAL', 'EVA']
-labels_orc = ['PUMP', 'EVA', 'IHX', 'EXP', 'COND']
+labels_hp = ['COMP', 'COND1', 'IHX1', 'VAL', 'EVA1']
+labels_orc = ['PUMP', 'EVA2', 'IHX2', 'EXP', 'COND2']
 
 fig, ax = plt.subplots()
-fig.set_size_inches(12, 3.5)
+fig.set_size_inches(14.5, 3.5)
 
 # Reverse the order of groups for plotting
 groups = ['Output', 'ORC', 'TES', 'HP', 'Input']
@@ -88,7 +87,7 @@ legend_patches = [mpatches.Patch(color=colors_hp[i], label=labels_hp[i]) for i i
                  [mpatches.Patch(color=colors_orc[i], label=labels_orc[i]) for i in range(len(labels_orc))]
 
 # Displaying the legend
-ax.legend(handles=legend_patches, loc='upper left', bbox_to_anchor=(1, 1), ncol=2)
+ax.legend(handles=legend_patches, loc='upper left', bbox_to_anchor=(1, 0.9), ncol=2, frameon=False)
 
 # Setting the x-axis label and limits
 label_text = "Exergetic efficiency of the overall system $\\varepsilon = 1 - y_\\mathrm{D} - y_\\mathrm{L}$ [%]"
@@ -96,9 +95,10 @@ ax.set_xlabel(label_text)
 ax.set_xlim(left=0)
 
 # Adjust subplot parameters to give more space for the legend
-plt.subplots_adjust(left=0.08)  # Adjust this value as needed to fit the legend
-plt.subplots_adjust(right=0.65)  # Adjust this value as needed to fit the legend
-plt.subplots_adjust(bottom=0.25)
+plt.subplots_adjust(left=0.07)
+plt.subplots_adjust(right=0.71)
+plt.subplots_adjust(top=0.95)
+plt.subplots_adjust(bottom=0.22)
 
-plt.savefig('exergy_conversion.png')
+plt.savefig('exergy_conversion.pdf')
 plt.show()

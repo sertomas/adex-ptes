@@ -143,9 +143,9 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
             t32_calc_pump = eta_s_compressor_func(eta_s_pump, variables[0], variables[1], variables[2], variables[5], wf)
         # 3
         if adex and not config['ihx']:  # ideal ihx
-            if config['cond']:
+            if config['cond']:  # real cond
                 t36_set = ttd_temperature_func(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
-            else:
+            else:  # ideal cond
                 t36_set = same_temperature_func(variables[2], variables[5], wf, variables[3], variables[4], wf)
         # elif adex and config['ihx']:  # real ihx for adv. exergy analysis
         #     t36_set = eps_real_ihx_func(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
@@ -171,14 +171,14 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
             t35_calc_exp = eta_s_expander_func(eta_s_exp, variables[7], variables[6], variables[9], variables[8], wf)
         # 10
         if adex and not config['ihx']:  # ideal ihx
-            if not config['eva']:  # ideal eva
+            # if config['eva'] and not config['pump'] and not config['exp'] and not config['cond']:  # only real eva
+            #     t33_calc = eps_real_he_func(epsilon['eva'], variables[11], p41, variables[12], variables[13], m41,
+            #                                 fluid_tes, variables[10], target_p33, variables[7], variables[6], variables[14], wf)
+            # else:  # ideal eva
                 t33_calc = ideal_ihx_entropy_func(variables[9], variables[8], variables[3], variables[4], wf,
                                                   variables[2], variables[5], variables[10], target_p33, wf)
-            else:  # real eva for adv. exergy analysis
-                t33_calc = eps_real_he_func(epsilon['eva'], variables[11], p41, variables[12], variables[13], m41, fluid_tes,
-                                            variables[10], target_p33, variables[7], variables[6], variables[14], wf)
         else:  # real ihx for base design or for adv. exergy analysis
-            t33_calc = ihx_func(variables[9], variables[3], variables[2], variables[10])
+            t33_calc = ihx_func(variables[9], variables[3], variables[2], variables[10]) 
         # 11
         t41_set = temperature_func(t41, variables[11], p41, fluid_tes)
         # 12
@@ -255,14 +255,14 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
             t35_calc_exp_j = eta_s_expander_deriv(eta_s_exp, variables[7], variables[6], variables[9], variables[8], wf)
         # 10
         if adex and not config['ihx']:  # ideal ihx
-            if not config['eva']:  # ideal eva
+            # if config['eva'] and not config['pump'] and not config['exp'] and not config['cond']:  # only real eva
+            #     t33_calc_j = eps_real_he_deriv(epsilon['eva'], variables[11], p41, variables[12], variables[13], m41,
+            #                                    fluid_tes, variables[10], target_p33, variables[7], variables[6], variables[14], wf)
+            # else:  # ideal eva
                 t33_calc_j = ideal_ihx_entropy_deriv(variables[9], variables[8], variables[3], variables[4], wf,
                                                      variables[2], variables[5], variables[10], target_p33, wf)
-            else:  # real eva for adv. exergy analysis
-                t33_calc_j = eps_real_he_deriv(epsilon['eva'], variables[11], p41, variables[12], variables[13], m41, fluid_tes,
-                                               variables[10], target_p33, variables[7], variables[6], variables[14], wf)
         else:  # real ihx for base design or for adv. exergy analysis
-            t33_calc_j = ihx_deriv(variables[9], variables[3], variables[2], variables[10])
+            t33_calc_j = ihx_deriv(variables[9], variables[3], variables[2], variables[10]) 
         # 11
         t41_set_j = temperature_deriv(t41, variables[11], p41, fluid_tes)
         # 12
@@ -335,7 +335,15 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
         jacobian[9, 9] = t35_calc_exp_j['h_2']  # derivative of t35_calc_exp with respect to h35
         jacobian[9, 8] = t35_calc_exp_j['p_2']  # derivative of t35_calc_exp with respect to p35
         if adex and not config['ihx']:  # ideal ihx
-            if not config['eva']:  # ideal eva
+            # if config['eva'] and not config['pump'] and not config['exp'] and not config['cond']:  # only real eva
+            # jacobian[10, 11] = t33_calc_j['h_hot_in']  # derivative of m31_calc_eva with respect to h41
+            # jacobian[10, 12] = t33_calc_j['h_hot_out']  # derivative of m31_calc_eva with respect to h42
+            # jacobian[10, 13] = t33_calc_j['p_hot_out']  # derivative of m31_calc_eva with respect to p42
+            # jacobian[10, 10] = t33_calc_j['h_cold_in']  # derivative of m31_calc_eva with respect to h33
+            # jacobian[10, 7] = t33_calc_j['h_cold_out']  # derivative of m31_calc_eva with respect to h34
+            # jacobian[10, 6] = t33_calc_j['p_cold_out']  # derivative of m31_calc_eva with respect to p34
+            # jacobian[10, 14] = t33_calc_j['m_cold']  # derivative of m31_calc_eva with respect to m31
+            # else:
                 jacobian[10, 9] = t33_calc_j['h_hot_in']  # derivative of t33_calc_ihx_j with respect to h35
                 jacobian[10, 8] = t33_calc_j['p_hot_in']  # derivative of t33_calc_ihx_j with respect to p35
                 jacobian[10, 3] = t33_calc_j['h_hot_out']  # derivative of t33_calc_ihx_j with respect to h36
@@ -343,14 +351,6 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
                 jacobian[10, 2] = t33_calc_j['h_cold_in']  # derivative of t33_calc_ihx_j with respect to h32
                 jacobian[10, 5] = t33_calc_j['p_cold_in']  # derivative of t33_calc_ihx_j with respect to p32
                 jacobian[10, 10] = t33_calc_j['h_cold_out']  # derivative of t33_calc_ihx_j with respect to h33
-            else:
-                jacobian[10, 11] = t33_calc_j['h_hot_in']  # derivative of m31_calc_eva with respect to h41
-                jacobian[10, 12] = t33_calc_j['h_hot_out']  # derivative of m31_calc_eva with respect to h42
-                jacobian[10, 13] = t33_calc_j['p_hot_out']  # derivative of m31_calc_eva with respect to p42
-                jacobian[10, 10] = t33_calc_j['h_cold_in']  # derivative of m31_calc_eva with respect to h33
-                jacobian[10, 7] = t33_calc_j['h_cold_out']  # derivative of m31_calc_eva with respect to h34
-                jacobian[10, 6] = t33_calc_j['p_cold_out']  # derivative of m31_calc_eva with respect to p34
-                jacobian[10, 14] = t33_calc_j['m_cold']  # derivative of m31_calc_eva with respect to m31
         else:
             jacobian[10, 9] = t33_calc_j['h_1']  # derivative of t33_calc_ihx with respect to h35
             jacobian[10, 3] = t33_calc_j['h_2']  # derivative of t33_calc_ihx with respect to h36
@@ -657,7 +657,7 @@ def find_opt_p33(p33_opt_start, min_t_diff_eva_start, config, label, adex=False,
         diff = abs(min_t_diff_eva - target_min_td_eva)
 
         step += 1
-        buffer.write( f'Optimization in progress for {label}: step = {step}, diff = {round(diff, 6)}, p12 = {round(p33_opt * 1e-5, 4)} bar, COP = {round(eta, 4)}.\n')
+        buffer.write( f'Optimization in progress for {label}: step = {step}, diff = {round(diff, 6)}, p12 = {round(p33_opt * 1e-5, 4)} bar, eta = {round(eta, 4)}.\n')
 
     buffer.write(f'Optimization completed successfully in {step} steps!\n')
     buffer.write(f'Optimal p12: {round(p33_opt * 1e-5, 4)}, bar.\n')
@@ -783,7 +783,6 @@ def run_orc_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, 
     return df_ed
 
 
-
 def main_multiprocess():
     start = time.perf_counter()
 
@@ -901,7 +900,7 @@ p33_opt = find_opt_p33(p33_start, target_diff, config=config_real, label=label_r
 df_components = exergy_analysis_orc(t0, p0, df_opt)
 for col in df_components.columns[:5]:
     df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-df_components.to_csv(f'outputs/adex_orc/orc_comps_real.csv')
+df_components.round(5).to_csv(f'outputs/adex_orc/orc_comps_real.csv')
 
 
 # ----------------------------------------------------------------------------------------------------------------------
