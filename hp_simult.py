@@ -18,6 +18,28 @@ pd.set_option('display.width', None)
 
 
 def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=False):
+    """
+     Simulates the performance of a heat pump system under specified conditions and configurations.
+
+     This function performs a simultaneous solution approach to determine the operating conditions of a heat pump system.
+     It considers thermodynamic properties, pressure drops, and heat exchange efficiencies to solve for the state points in the
+     cycle, including the compressor, condenser, expansion valve, and evaporator. The function can optionally account for
+     advanced exergetic analysis (adex) parameters and plot the results.
+
+     Parameters:
+     - target_p12 (float): Target pressure at state point 12 in Pa.
+     - print_results (bool): If True, prints the results of the simulation.
+     - config (dict): Configuration dictionary specifying which components are included in the simulation (condenser, IHX, evaporator).
+     - label (str): A label for the simulation case, used in printing and plotting.
+     - adex (bool, optional): If True, uses advanced exergetic analysis parameters. Defaults to False.
+     - plot (bool, optional): If True, plots the results of the simulation. Defaults to False.
+
+     Returns:
+     - df_streams (DataFrame): A DataFrame containing the mass flow rates, temperatures, enthalpies, pressures, entropies,
+       and fluids for each state point in the cycle.
+     - t_pinch_cond_sh (float): The pinch temperature difference in the superheater section of the condenser.
+     - cop (float): The coefficient of performance of the heat pump system.
+     """
 
     try:
         epsilon = pd.read_csv('outputs/adex_hp/hp_comps_real.csv', index_col=0)['epsilon']  # from base case
@@ -282,7 +304,7 @@ def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=F
         # 23
         p29_set_j = pr_deriv(pr_cond_part_cold, variables[22], variables[23])
 
-        # TODO [h16, h11, p11, h12, m11, power, h21, h22, h13, h15, p16, p13, h14, p14, p22, p15,
+        #      [h16, h11, p11, h12, m11, power, h21, h22, h13, h15, p16, p13, h14, p14, p22, p15,
         #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
         #       h18, h19, h28, h29, p18, p19, p28, p29])]
         #        16   17   18   19   20   21   22   23
@@ -399,9 +421,9 @@ def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=F
         iter_step += 1
 
         cond_number = np.linalg.cond(jacobian)
-        #print('Condition number: ', cond_number, ' and residual: ', np.linalg.norm(residual))
-        #print(variables)
-    # TODO [h16, h11, p11, h12, m11, power, h21, h22, h13, h15, p16, p13, h14, p14, p22, p15,
+        # print('Condition number: ', cond_number, ' and residual: ', np.linalg.norm(residual))
+        # print(variables)
+    #      [h16, h11, p11, h12, m11, power, h21, h22, h13, h15, p16, p13, h14, p14, p22, p15,
     #        0    1    2    3    4     5     6    7    8    9    10   11   12   13   14   15
     #       h18, h19, h28, h29, p18, p19, p28, p29])]
     #        16   17   18   19   20   21   22   23
@@ -460,7 +482,7 @@ def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=F
     m11 = variables[4]
 
     df_streams = pd.DataFrame(index=[11, 12, 13, 14, 15, 16, 21, 22, 18, 19, 28, 29],
-                      columns=['m [kg/s]', 'T [°C]', 'h [kJ/kg]', 'p [bar]', 's [J/kgK]', 'fluid'])
+                              columns=['m [kg/s]', 'T [°C]', 'h [kJ/kg]', 'p [bar]', 's [J/kgK]', 'fluid'])
     df_streams.loc[11] = [m11, t11, h11, p11, s11, wf]
     df_streams.loc[12] = [m11, t12, h12, p12, s12, wf]
     df_streams.loc[13] = [m11, t13, h13, p13, s13, wf]
@@ -518,6 +540,24 @@ def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=F
 
 
 def exergy_analysis_hp(t0, p0, df):
+    """
+    Conducts exergy analysis on a heat pump system using the thermodynamic properties of the cycle's state points.
+
+    This function calculates the physical exergy, exergy destruction, and exergy efficiency of each component
+    within a heat pump system, based on the inlet temperatures, pressures, and the thermodynamic states of
+    the working fluid and the secondary fluid (typically water) in thermal energy storage (TES).
+    The analysis helps in identifying the major sources of inefficiency within the system.
+
+    Parameters:
+    - t0 (float): Ambient temperature in Kelvin.
+    - p0 (float): Ambient pressure in Pa.
+    - df (DataFrame): A DataFrame containing the mass flow rates (m [kg/s]), temperatures (T [°C]),
+      enthalpies (h [kJ/kg]), pressures (p [bar]), entropies (s [J/kgK]), and fluids for each state point in the cycle.
+
+    Returns:
+    - df_comps (DataFrame): A DataFrame with the exergy flow (EF [kW]), exergy destruction (ED [kW]), exergy
+      performance (EP [kW]), exergy efficiency (epsilon), power (P [kW]), and heat (Q [kW]) for each component of the heat pump system.
+    """
 
     h0_wf = PSI('H', 'T', t0, 'P', p0, df.loc[11, 'fluid']) * 1e-3
     s0_wf = PSI('S', 'T', t0, 'P', p0, df.loc[11, 'fluid'])
@@ -540,9 +580,6 @@ def exergy_analysis_hp(t0, p0, df):
     # ED_VAL = T0 * (s14 - s13)
     ed_val = t0 * (df.loc[11, 'm [kg/s]'] * (df.loc[14, 's [J/kgK]'] - df.loc[13, 's [J/kgK]'])) * 1e-3
     # ED_EVA = E14 - E15
-    # temp_boundary = ((df.loc[15, 'h [kJ/kg]'] - df.loc[14, 'h [kJ/kg]'])
-    #                  / (df.loc[15, 's [J/kgK]'] - df.loc[14, 's [J/kgK]']) * 1e3)
-    # ed_eva = - (df.loc[11, 'm [kg/s]'] * (df.loc[15, 'h [kJ/kg]'] - df.loc[14, 'h [kJ/kg]'])) * (1 - t0 / temp_boundary)
     ed_eva = (df.loc[11, 'm [kg/s]'] * (df.loc[14, 'e^PH [kJ/kg]'] - df.loc[15, 'e^PH [kJ/kg]']))
 
     ed = {
@@ -634,6 +671,28 @@ def exergy_analysis_hp(t0, p0, df):
 
 
 def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False, output_buffer=None):
+    """
+    Finds the optimal pressure at state point 12 to achieve a target minimum temperature difference in the condenser
+    of a heat pump system through an iterative optimization process.
+
+    This function iteratively adjusts the pressure at state point 12 based on the difference between the current
+    minimum temperature difference in the condenser and the target minimum temperature difference. The goal is to
+    optimize the system's performance, particularly focusing on the coefficient of performance (COP) and ensuring
+    the condenser operates within specified temperature difference constraints.
+
+    Parameters:
+    - p12_opt_start (float): The starting value of pressure at state point 12 in Pa.
+    - min_t_diff_cond_start (float): The starting value of the minimum temperature difference in the condenser.
+    - config (dict): Configuration dictionary specifying components included in the simulation (e.g., condenser, IHX).
+    - label (str): A label for the optimization case, used in logging.
+    - adex (bool, optional): If True, uses advanced exergetic analysis parameters in the simulation. Defaults to False.
+    - output_buffer (list, optional): A list to which the optimization process logs will be appended. If None, logs are not saved.
+
+    Returns:
+    - p12_opt (float): The optimized pressure at state point 12 in Pa, aiming to achieve the target minimum temperature
+      difference in the condenser while maintaining or improving the COP.
+    """
+
     buffer = io.StringIO()  # Create a new buffer
     if config['cond']:
         target_min_td_cond = 5
@@ -668,6 +727,28 @@ def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False
 
 
 def set_adex_hp_config(*args):
+    """
+    Generates a configuration dictionary and label for an advanced exergy analysis of a heat pump system based on specified components.
+
+    This function allows for dynamic generation of a configuration for an ADEX analysis by specifying which components of the heat pump system
+    are considered in their "real" operating conditions. The function also constructs a label that represents the active components in the configuration.
+
+    Parameters:
+    - *args (str): Variable length argument list specifying the components to be considered "real" in the analysis.
+                   Valid components are 'comp' (compressor), 'cond' (condenser), 'ihx' (internal heat exchanger),
+                   'val' (valve), and 'eva' (evaporator).
+
+    Returns:
+    - config (dict): A dictionary where the keys represent components of the heat pump system and the values are booleans indicating
+                     whether each component is considered "real" (True) or not included in the "real" analysis (False).
+    - label (str): A string label constructed from the components specified as "real". This label serves as an identifier for the configuration.
+                   Special labels 'ideal' and 'real' are assigned when no components or all components are specified as "real", respectively.
+
+    Raises:
+    - Warning: If any of the specified arguments in *args are not valid component keys, a warning is printed indicating that the argument
+               has been ignored.
+    """
+
     # Define all keys with a default value of False
     config_keys = ['comp', 'cond', 'ihx', 'val', 'eva']
     config = {key: False for key in config_keys}
@@ -693,6 +774,32 @@ def set_adex_hp_config(*args):
 
 
 def perform_adex_hp(p12_start, config, label, df_ed, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
+    """
+    Executes an advanced exergy analysis for a heat pump system, optimizing a specific target condition, and evaluating system performance.
+
+    This function automates the process of optimizing the pressure at state point 12 based on a target condition, performing
+    a heat pump system simulation under the optimized conditions, conducting exergy analysis to identify inefficiencies, and
+    optionally calculating and saving exergy efficiency results.
+
+    Parameters:
+    - p12_start (float): Starting pressure at state point 12 in Pa, used as the initial guess for optimization.
+    - config (dict): Configuration dictionary specifying which components are included in the simulation.
+    - label (str): A label for the simulation case, used in printing and saving results.
+    - df_ed (DataFrame): A DataFrame to store the exergy destruction (ED) results for each component of the system.
+    - adex (bool, optional): If True, uses advanced exergetic analysis parameters. Defaults to False.
+    - save (bool, optional): If True, saves the simulation results to CSV files. Defaults to False.
+    - print_results (bool, optional): If True, prints the results of the simulation. Defaults to False.
+    - calc_epsilon (bool, optional): If True, calculates the exergy efficiency of the system components. Defaults to False.
+    - output_buffer (io.StringIO, optional): A buffer to capture and return the optimization process output. If None, output is not captured.
+
+    Returns:
+    - df_ed (DataFrame): Updated DataFrame with the exergy destruction (ED) results for each component.
+
+    Raises:
+    - Error messages are printed if there are negative temperature differences in the condenser or internal heat exchanger (IHX),
+      indicating an issue with the optimization or simulation setup.
+    """
+
     [_, target_diff, _] = hp_simultaneous(p12_start, print_results=print_results, config=config, label=label, adex=adex)
     p12_opt = find_opt_p12(p12_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
     [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
@@ -723,9 +830,31 @@ def perform_adex_hp(p12_start, config, label, df_ed, adex=False, save=False, pri
 
 
 def main_serial():
-    # BEGIN OF MAIN (sequentially) -------------------------------------------------------------------------------------
-    start = time.perf_counter()
+    """
+    The main function for running a serial (sequential) execution of advanced exergy analysis (ADEX) on a heat pump (HP) system.
 
+    This function sequentially executes the ADEX analysis for different configurations of a HP system, starting with the base case,
+    followed by the ideal case, single components in real conditions, and pairs of components in real conditions. Each configuration's
+    exergy destruction is calculated, and the results are saved and optionally printed.
+
+    The function:
+    - Sets up configurations for the base case, ideal case, individual components, and pairs of components.
+    - Executes the perform_adex_hp function for each configuration to perform the ADEX analysis.
+    - Saves the results in a DataFrame which includes exergy destruction values for each component and configuration.
+    - Optionally prints the results and calculates exergy efficiency for further analysis.
+
+    Parameters:
+    None
+
+    Returns:
+    None
+
+    Note:
+    This function does not accept any arguments and does not return any values. Instead, it directly modifies global variables
+    and performs file I/O operations to save the analysis results.
+    """
+
+    # BEGIN OF MAIN (sequentially) -------------------------------------------------------------------------------------
     columns = ['ED']
     multi_index = pd.MultiIndex(levels=[[], []], codes=[[], []], names=['Label', 'Key'])
     df_ed = pd.DataFrame(columns=columns, index=multi_index)
@@ -759,6 +888,29 @@ def run_hp_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, o
 
 
 def main_multiprocess():
+    """
+    The main function for running a multiprocessed execution of advanced exergy analysis (ADEX) on a heat pump (HP) system.
+
+    This function initializes the data structures for storing results, sets up multiprocessing tasks for different configurations
+    of a HP system (including the base case, ideal case, individual components, and pairs of components), and executes these tasks
+    in parallel using multiprocessing.Pool. It collects and concatenates the results from each process, prints the output stored
+    during execution, and saves the final analysis results to a CSV file.
+
+    It demonstrates an efficient approach to performing computationally intensive simulations and analyses by leveraging
+    Python's multiprocessing capabilities to parallelize the work, significantly reducing the total computation time.
+
+    Parameters:
+    None
+
+    Returns:
+    None
+
+    Note:
+    - This function utilizes global variables for configuration and task setup.
+    - It directly performs file I/O operations to save the analysis results.
+    - Multiprocessing is used to parallelize the execution of simulation tasks, improving performance on multicore systems.
+    """
+
     start = time.perf_counter()
 
     # Initialize the DataFrame for storing results
@@ -877,6 +1029,8 @@ def conv_exergy_analysis():
     df_components.to_csv(f'outputs/adex_hp/hp_comps_real.csv')  # DO NOT ROUND THIS because it's used for the next steps
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+# ADVANCED EXERGY ANALYSIS
 multi = True  # true: multiprocess, false: sequential computation
 
 if __name__ == '__main__':

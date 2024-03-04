@@ -20,6 +20,28 @@ pd.set_option('display.width', None)
 
 
 def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=False):
+    """
+    Simulates the performance of an Organic Rankine Cycle (ORC) system under specified conditions and configurations.
+
+    This function performs a simultaneous solution approach to determine the operating conditions of an ORC system.
+    It takes into account thermodynamic properties, pressure drops, and heat exchange efficiencies to solve for the state
+    points in the cycle, including the pump, condenser, expander, and evaporator. The function can optionally account for
+    advanced exergetic analysis (adex) parameters and plot the results.
+
+    Parameters:
+    - target_p33 (float): Target pressure at state point 33 in Pa.
+    - print_results (bool): If True, prints the results of the simulation.
+    - config (dict): Configuration dictionary specifying which components are included in the simulation (condenser, IHX, evaporator).
+    - label (str): A label for the simulation case, used in printing and plotting.
+    - adex (bool, optional): If True, uses advanced exergetic analysis parameters. Defaults to False.
+    - plot (bool, optional): If True, plots the results of the simulation. Defaults to False.
+
+    Returns:
+    - df_streams (DataFrame): A DataFrame containing the mass flow rates, temperatures, enthalpies, pressures, entropies,
+      and fluids for each state point in the cycle.
+    - t_pinch_eva_sh (float): The pinch temperature difference in the superheater section of the evaporator.
+    - efficiency (float): The efficiency of the ORC system calculated as the net power output divided by the heat input.
+    """
 
     try:
         epsilon = pd.read_csv('outputs/adex_orc/orc_comps_real.csv', index_col=0)['epsilon']  # from base case
@@ -150,6 +172,7 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
         # elif adex and config['ihx']:  # real ihx for adv. exergy analysis
         #     t36_set = eps_real_ihx_func(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
         #                                 variables[2], variables[5], variables[10], target_p33, wf)
+        # PROBLEM: otherwise is temp. diff. in IHX negative
         else:  # real ihx for base design
             t36_set = ttd_temperature_func(ttd_l_ihx, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # 4
@@ -175,6 +198,7 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
             #     t33_calc = eps_real_he_func(epsilon['eva'], variables[11], p41, variables[12], variables[13], m41,
             #                                 fluid_tes, variables[10], target_p33, variables[7], variables[6], variables[14], wf)
             # else:  # ideal eva
+            # PROBLEM: if epsilon['eva'] is set for the other cases, the IHX has a negative entropy production
                 t33_calc = ideal_ihx_entropy_func(variables[9], variables[8], variables[3], variables[4], wf,
                                                   variables[2], variables[5], variables[10], target_p33, wf)
         else:  # real ihx for base design or for adv. exergy analysis
@@ -509,6 +533,23 @@ def orc_simultaneous(target_p33, print_results, config, label, adex=False, plot=
 
 
 def exergy_analysis_orc(t0, p0, df):
+    """
+    Conducts an exergy analysis on an Organic Rankine Cycle (ORC) system using the thermodynamic properties of the cycle's state points.
+
+    This function calculates the physical exergy, exergy destruction, and exergy efficiency of each component within an ORC system,
+    based on the inlet temperatures, pressures, and the thermodynamic states of the working fluid and the secondary fluid in thermal
+    energy storage (TES). The analysis helps in identifying the major sources of inefficiency within the system.
+
+    Parameters:
+    - t0 (float): Ambient temperature in Kelvin.
+    - p0 (float): Ambient pressure in Pa.
+    - df (DataFrame): A DataFrame containing the mass flow rates (m [kg/s]), temperatures (T [°C]),
+      enthalpies (h [kJ/kg]), pressures (p [bar]), entropies (s [J/kgK]), and fluids for each state point in the cycle.
+
+    Returns:
+    - df_comps (DataFrame): A DataFrame with the exergy flow (EF [kW]), exergy destruction (ED [kW]), exergy
+      performance (EP [kW]), exergy efficiency (epsilon), power (P [kW]), and heat (Q [kW]) for each component of the ORC system.
+    """
 
     h0_wf = PSI('H', 'T', t0, 'P', p0, df.loc[31, 'fluid']) * 1e-3
     s0_wf = PSI('S', 'T', t0, 'P', p0, df.loc[31, 'fluid'])
@@ -531,10 +572,6 @@ def exergy_analysis_orc(t0, p0, df):
     # ED_EXP = T0 * (s35 - s34)
     ed_exp = t0 * (df.loc[31, 'm [kg/s]'] * (df.loc[35, 's [J/kgK]'] - df.loc[34, 's [J/kgK]'])) * 1e-3
     # ED_EVA = E36 - E31
-    # temp_boundary = ((df.loc[31, 'h [kJ/kg]'] - df.loc[36, 'h [kJ/kg]'])
-    #                  / (df.loc[31, 's [J/kgK]'] - df.loc[36, 's [J/kgK]']) * 1e3)
-    # ed_cond = (df.loc[31, 'm [kg/s]'] * (df.loc[36, 'h [kJ/kg]'] - df.loc[31, 'h [kJ/kg]'])) * (
-    #             1 - t0 / temp_boundary)
     ed_cond = (df.loc[31, 'm [kg/s]'] * (df.loc[36, 'e^PH [kJ/kg]'] - df.loc[31, 'e^PH [kJ/kg]']))
 
     ed = {
@@ -610,6 +647,28 @@ def exergy_analysis_orc(t0, p0, df):
 
 
 def set_adex_orc_config(*args):
+    """
+    Generates a configuration dictionary and label for an advanced exergy analysis of an Organic Rankine Cycle (ORC) system based on specified components.
+
+    This function allows for dynamic generation of a configuration for an ADEX analysis by specifying which components of the ORC system
+    are considered in their "real" operating conditions. The function also constructs a label that represents the active components in the configuration.
+
+    Parameters:
+    - *args (str): Variable length argument list specifying the components to be considered "real" in the analysis.
+                   Valid components are 'pump', 'eva' (evaporator), 'exp' (expander), 'ihx' (internal heat exchanger),
+                   and 'cond' (condenser).
+
+    Returns:
+    - config (dict): A dictionary where the keys represent components of the ORC system and the values are booleans indicating
+                     whether each component is considered "real" (True) or not included in the "real" analysis (False).
+    - label (str): A string label constructed from the components specified as "real". This label serves as an identifier for the configuration.
+                   Special labels 'ideal' and 'real' are assigned when no components or all components are specified as "real", respectively.
+
+    Raises:
+    - Warning: If any of the specified arguments in *args are not valid component keys, a warning is printed indicating that the argument
+               has been ignored.
+    """
+
     # Define all keys with a default value of False
     config_keys = ['pump', 'eva', 'exp', 'ihx', 'cond']
     config = {key: False for key in config_keys}
@@ -635,6 +694,31 @@ def set_adex_orc_config(*args):
 
 
 def find_opt_p33(p33_opt_start, min_t_diff_eva_start, config, label, adex=False, output_buffer=None):
+    """
+    Finds the optimal pressure at state point 33 to achieve a target minimum temperature difference in the evaporator of an ORC system.
+
+    This function iteratively adjusts the pressure at state point 33 to minimize the difference between the actual minimum temperature
+    difference across the evaporator and a target value. It uses a simple optimization approach, adjusting the pressure based on the
+    observed temperature difference and a predetermined learning rate.
+
+    Parameters:
+    - p33_opt_start (float): Initial guess for the optimal pressure at state point 33 in Pa.
+    - min_t_diff_eva_start (float): Initial minimum temperature difference in the evaporator in Kelvin.
+    - config (dict): Configuration dictionary specifying which components are included in the ORC system simulation.
+    - label (str): A label for the simulation case, used in logging and output.
+    - adex (bool, optional): If True, uses advanced exergetic analysis parameters. Defaults to False.
+    - output_buffer (io.StringIO, optional): A buffer to capture the optimization process output. If None, output is not captured.
+
+    Returns:
+    - p33_opt (float): The optimized pressure at state point 33 in Pa that achieves or comes closest to the target minimum temperature
+                       difference in the evaporator.
+
+    Note:
+    - The function logs the optimization progress, including the current step, the difference between the target and actual minimum
+      temperature differences, the current guess for the optimal pressure, and the system's efficiency at each step.
+    - If an output_buffer is provided, the log is appended to it; otherwise, the log is printed or discarded.
+    """
+
     buffer = io.StringIO()  # Create a new buffer
     if config['eva']:
         target_min_td_eva = 5
@@ -669,6 +753,32 @@ def find_opt_p33(p33_opt_start, min_t_diff_eva_start, config, label, adex=False,
 
 
 def perform_adex_orc(p33_start, config, label, df_ed, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
+    """
+    Executes an advanced exergy analysis for an Organic Rankine Cycle (ORC) system, optimizing a specific target condition, and evaluating system performance.
+
+    This function automates the process of optimizing the pressure at state point 33 based on a target condition, performing
+    an ORC system simulation under the optimized conditions, conducting exergy analysis to identify inefficiencies, and
+    optionally calculating and saving exergy efficiency results.
+
+    Parameters:
+    - p33_start (float): Starting pressure at state point 33 in Pa, used as the initial guess for optimization.
+    - config (dict): Configuration dictionary specifying which components are included in the simulation.
+    - label (str): A label for the simulation case, used in printing and saving results.
+    - df_ed (DataFrame): A DataFrame to store the exergy destruction (ED) results for each component of the system.
+    - adex (bool, optional): If True, uses advanced exergetic analysis parameters. Defaults to False.
+    - save (bool, optional): If True, saves the simulation results to CSV files. Defaults to False.
+    - print_results (bool, optional): If True, prints the results of the simulation. Defaults to False.
+    - calc_epsilon (bool, optional): If True, calculates the exergy efficiency of the system components. Defaults to False.
+    - output_buffer (io.StringIO, optional): A buffer to capture and return the optimization process output. If None, output is not captured.
+
+    Returns:
+    - df_ed (DataFrame): Updated DataFrame with the exergy destruction (ED) results for each component.
+
+    Raises:
+    - Error messages are printed if there are negative temperature differences in the evaporator or internal heat exchanger (IHX),
+      indicating an issue with the optimization or simulation setup.
+    """
+
     [_, target_diff, _] = orc_simultaneous(p33_start, print_results=print_results, config=config, label=label, adex=adex)
     p33_opt = find_opt_p33(p33_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
     [df_opt, _, _] = orc_simultaneous(p33_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
@@ -699,6 +809,30 @@ def perform_adex_orc(p33_start, config, label, df_ed, adex=False, save=False, pr
 
 
 def main_serial():
+    """
+    The main function for running a serial (sequential) execution of advanced exergy analysis (ADEX) on an Organic Rankine Cycle (ORC) system.
+
+    This function sequentially executes the ADEX analysis for different configurations of an ORC system, starting with the base case,
+    followed by the ideal case, single components in real conditions, and pairs of components in real conditions. Each configuration's
+    exergy destruction is calculated, and the results are saved and optionally printed.
+
+    The function:
+    - Sets up configurations for the base case, ideal case, individual components, and pairs of components.
+    - Executes the perform_adex_orc function for each configuration to perform the ADEX analysis.
+    - Saves the results in a DataFrame which includes exergy destruction values for each component and configuration.
+    - Optionally prints the results and calculates exergy efficiency for further analysis.
+
+    Parameters:
+    None
+
+    Returns:
+    None
+
+    Note:
+    This function does not accept any arguments and does not return any values. Instead, it directly modifies global variables
+    and performs file I/O operations to save the analysis results. It also measures and prints the total execution time.
+    """
+
     # BEGIN OF MAIN (sequentially) -------------------------------------------------------------------------------------
     start = time.perf_counter()
 
@@ -731,6 +865,7 @@ def main_serial():
         perform_adex_orc(p33_start_ideal, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
 
     # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
+
     end = time.perf_counter()
     print(f'Elapsed time: {round(end - start, 3)} seconds.')
 
@@ -784,6 +919,29 @@ def run_orc_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, 
 
 
 def main_multiprocess():
+    """
+    The main function for running a multiprocessing execution of advanced exergy analysis (ADEX) on an Organic Rankine Cycle (ORC) system.
+
+    This function parallelizes the execution of the ADEX analysis for different configurations of an ORC system, including the base case,
+    the ideal case, and variations with individual components and pairs of components in real conditions. Exergy destruction calculations
+    are performed for each configuration, and the results are stored, with the option to save and print the results.
+
+    The multiprocessing approach significantly reduces the overall computation time, especially beneficial for extensive simulations
+    involving multiple configurations or large parameter spaces.
+
+    Parameters:
+    None
+
+    Returns:
+    None
+
+    Note:
+    - This function utilizes the multiprocessing module to create a pool of worker processes, which execute tasks in parallel.
+    - The configurations for the ADEX analysis are defined within the function, and the perform_adex_orc function is called for each configuration.
+    - Results from each process are collected and concatenated into a final DataFrame, which is then saved to a CSV file.
+    - Execution time for the entire process is measured and printed at the end of the function.
+    """
+
     start = time.perf_counter()
 
     # Initialize the DataFrame for storing results
@@ -888,22 +1046,6 @@ def main_multiprocess():
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# BASE CASE and optimal p33
-t0 = 283.15  # K
-p0 = 1.013e5  # Pa
-
-[config_real, label_real] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
-p33_start = 22e5  # bar
-[_, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_real, label=label_real)
-p33_opt = find_opt_p33(p33_start, target_diff, config=config_real, label=label_real, adex=False)
-[df_opt, _, _] = orc_simultaneous(p33_opt, print_results=True, config=config_real, label=f'optimal {label_real}')
-df_components = exergy_analysis_orc(t0, p0, df_opt)
-for col in df_components.columns[:5]:
-    df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-df_components.round(5).to_csv(f'outputs/adex_orc/orc_comps_real.csv')
-
-
-# ----------------------------------------------------------------------------------------------------------------------
 # ADVANCED EXERGY ANALYSIS
 multi = True  # true: multiprocess, false: sequential computation
 
@@ -912,62 +1054,3 @@ if __name__ == '__main__':
         main_multiprocess()
     else:
         main_serial()
-    
-    
-
-'''
-t0 = 283.15  # K
-p0 = 1.013e5  # Pa
-
-[config_real, label_real] = set_adex_orc_config('pump', 'eva', 'ihx', 'exp', 'cond')
-p33_start = 22e5  # bar
-[_, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_real, label=label_real)
-p33_opt = find_opt_p33(p33_start, target_diff, config=config_real, label=label_real, adex=False)
-[df_opt, _, _] = orc_simultaneous(p33_opt, print_results=True, config=config_real, label=f'optimal {label_real}', plot=True)
-df_components = exergy_analysis_orc(t0, p0, df_opt)
-for col in df_components.columns[:5]:
-    df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-df_components.to_csv(f'outputs/adex_orc/orc_comps_real.csv')
-
-# IDEAL CASE and optimal p33
-[config_ideal, label_ideal] = set_adex_orc_config()
-p33_start = 29e5  # bar
-[df_opt, target_diff, _] = orc_simultaneous(p33_start, print_results=True, config=config_ideal, label=label_ideal, adex=True)
-p33_opt = find_opt_p33(p33_start, target_diff, config=config_ideal, label=label_ideal, adex=True)
-[df_opt, _, _] = orc_simultaneous(p33_opt, print_results=True, config=config_ideal, label=f'optimal {label_ideal}', adex=True, plot=True)
-df_components = exergy_analysis_orc(t0, p0, df_opt)
-for col in df_components.columns[:5]:
-    df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-df_components.round(4).to_csv(f'outputs/adex_orc/orc_comps_ideal.csv')
-
-
-# Advanced Exergy Analysis -- single components
-components = ['pump', 'eva', 'ihx', 'exp', 'cond']
-for component in components:
-    config_i, label_i = set_adex_orc_config(component)
-    [_, diff, eta] = orc_simultaneous(p33_start, print_results=True, config=config_i, label=label_i, adex=True)
-    print(eta)
-    if component == 'eva':
-        minimum = 5
-    else:
-        minimum = 0
-    if diff < minimum:
-        print('NOT GOOD')
-        print(diff)
-
-# Advanced Exergy Analysis -- pair of components
-component_pairs = list(itertools.combinations(components, 2))
-for pair in component_pairs:
-    config_i, label_i = set_adex_orc_config(*pair)
-    [_, diff, eta] = orc_simultaneous(p33_start, print_results=True, config=config_i, label=label_i, adex=True)
-    print(eta)
-    if component == 'eva':
-        minimum = 5
-    else:
-        minimum = 0
-    if diff < minimum:
-        print('NOT GOOD')
-        print(diff)
-
-
-'''

@@ -171,6 +171,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/outputs/adex_hp/hp_streams_val.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/outputs/adex_orc/orc_adex_analysis.csv">
           <value>
             <Attribute>

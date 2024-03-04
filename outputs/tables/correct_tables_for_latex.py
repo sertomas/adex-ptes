@@ -21,3 +21,11 @@ df_hp_mexo.columns = new_column_names
 df_orc_mexo.columns = new_column_names
 df_hp_mexo.to_csv('hp_adex_analysis.csv')
 df_orc_mexo.to_csv('orc_adex_analysis.csv')
+
+df_hp_mexo = pd.read_csv('../adex_hp/hp_adex_analysis.csv', index_col=[0, 1])
+sum_values_by_l = df_hp_mexo.groupby(level=1)['ED EX l [kW]'].sum()
+print(sum_values_by_l)
+
+df_orc_mexo = pd.read_csv('../adex_orc/orc_adex_analysis.csv', index_col=[0, 1])
+sum_values_by_l = df_orc_mexo.groupby(level=1)['ED EX l [kW]'].sum()
+print(sum_values_by_l)

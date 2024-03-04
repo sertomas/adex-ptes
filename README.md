@@ -3,91 +3,100 @@
 [![forthebadge](http://forthebadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
 [<img src="https://raw.githubusercontent.com/oemof/tespy/9915f013c40fe418947a6e4c1fd0cd0eba45893c/docs/api/_images/logo_tespy_big.svg" alt="drawing" width="180"/>](https://github.com/oemof/tespy)
 
-This is a Python script that models a simple Carnot Battery (high temperature HP & transcritical ORC) and performs an advanced exergetic analysis. 
+This is a Python script that models a simple Carnot Battery (high temperature HP and ORC) and performs an advanced exergetic analysis. 
 
 This is part of my research work at [Department of Energy Engineering and Environmental Protection](https://www.tu.berlin/en/energietechnik) of the Technische Universität Berlin.
 
 ## Table of contents
 
-- [Advanced Exergy Analysis of a Carnot Battery](#advanced-exergy-analysis-of-a-carnot-battery)
-  - [Table of contents](#table-of-contents)
   - [Installation](#installation)
   - [Usage](#usage)
+  - [Methodology](#Methodology)
   - [License](#license)
 
 ## Installation
 
 [(Back to top)](#table-of-contents)
 
-1. Install Python (Version 3.9 recommended).
-2. Create a virtual environment using the [environment YAML file](https://github.com/sertomas/adex-carnot-battery/blob/main/adex_carnot_battery.yaml). Clone the repository. You can use the following commands in your terminal or command prompt:
+To set up the project environment, follow these steps:
+
+1. **Install Python**: Ensure you have Python installed on your system. Version 3.9 is recommended for compatibility. You can download it from the [official Python website](https://www.python.org/downloads/).
+
+2. **Clone the Repository**: Download the project code by cloning the repository. Open your terminal or command prompt and run:
    ```bash
    git clone https://github.com/sertomas/adex-carnot-battery.git
-- Navigate to the project directory
+   ```
+   Then, navigate to the project directory:
    ```bash
    cd adex-carnot-battery
-- Create a virtual environment (you may use other tools like conda as well)
+   ```
+
+3. **Create a Virtual Environment**: It's a good practice to create a virtual environment for Python projects. This isolates your project's dependencies from the rest of your system. Use the following command:
    ```bash
    python -m venv adex-cb
-- Activate the virtual environment
-   ```bash
-   # On Windows
-   .\adex-cb\Scripts\activate
-   # On Unix or MacOS
-   source adex-cb/bin/activate
-- Install the required dependencies from the provided environment YAML file
-   ```bash 
-   pip install -r adex_carnot_battery.yaml
+   ```
+   After creating the virtual environment, you need to activate it. The activation command differs depending on your operating system:
+   - On Windows:
+     ```bash
+     .\adex-cb\Scripts\activate
+     ```
+   - On Unix or MacOS:
+     ```bash
+     source adex-cb/bin/activate
+     ```
 
-- Clone this repository
+4. **Install Required Dependencies**: The project dependencies are listed in a YAML file. However, `pip` does not directly install packages from a YAML file (commonly used with Conda environments). If you are using Conda, you can create an environment from the YAML file directly. Otherwise, for `pip`, ensure you have a `requirements.txt` file or convert the YAML content to a `pip`-compatible format. Assuming you have a `requirements.txt` file or have converted the YAML file content:
    ```bash
-  git clone https://github.com/sertomas/adex-carnot-battery.git
+   pip install -r requirements.txt
+   ```
+
+Note: If you intended to include instructions for installing dependencies using a YAML file with Conda, you might need to adjust the command for installing dependencies accordingly. For example:
+```bash
+conda env create -f adex_carnot_battery.yaml
+```
+Then, activate the Conda environment:
+```bash
+conda activate <env_name>
+```
+Ensure you replace `<env_name>` with the name of your environment as specified in the YAML file.
 
 ## Usage
 
 [(Back to top)](#table-of-contents)
 
 1. **Run**
-   - The `main.py` file is used to run all the simulations and perform the conventional exergy analysis and the advanced exergy analysis of the CB.
-   - The thermodynamic states of the HP and the ORC from the simulation using TESPy are saved in `outputs/hp_base_results.csv` and `outputs/orc_base_results.csv`.
-   - The file `func_fix.py` and `func_var.py` contain fixed/general functions as well as specific functions for the considered thermodynamic cycles.
-   - The results from the conventional exergy analysis are saved in `/exan`. 
-   - The results from the advanced exergy analysis of the HP and the ORC are saved in `/adex_hp` and `/adex_orc` respectively. 
-   - All the diagrams created during the simulations are saved in `/diagrams`.
-2. **Settings** 
-   - If you want to change general parameters of the CB, you can do it in `inputs/config.json`.
-   - If you want to change specific settings of the HP or ORC, you can do it in `inputs/hp_pars.json` or `inputs/orc_pars.json`.
-3. **Models**
-   - The models of the HP and the ORC are described in `/models/hp` and `/models/orc`. TESPy is used to perform the simulation of both thermodynamic cycles. If you want to change the structure of the models or change the specified variables, you can do it in `/models/hp/HeatPumpIhx.py` and in `/models/orc/OrcIhx.py` respectively. 
-   - A change in the structure of the system can require a change in the functions for the calculation of the advanced exergy analysis in `func_var.py`. In this case, the improvement of existing functions or the implementation of new functions in `func_var.py` might be necessary too. 
-4. **Advanced exergy analysis**
+   - To obtain all the results, run `hp_simult.py` and `orc_simult.py`. The equation system, the starting values and all the parameters are saved here. 
+   - The file `func_var.py` contain general functions for the modeling of the equation system
+   - The results from the advanced exergy analysis of the HP and the ORC are saved in `/outputs/adex_hp` and `/outputs/adex_orc` respectively. 
+   - All the diagrams created during the simulations are saved in `/outputs/diagrams`.
+2. **Changes** 
+   - If you want to change the fluid of the HP or of the ORC, or change the ambient conditions, you can do it in `hp_simult.py` and `orc_simult.py`. 
+   - If you want to change the design of your subsystem, you should change the equation system in `hp_simult.py` and `orc_simult.py`.
 
-   The advanced exergy analysis is performed following these steps: 
-   - `init_hp()` and `init_orc()` are run first to do the following tasks:
-     - A DataFrame with the same stream labels of the TESPy simulations is created. 
-     - The streams from and to the thermal energy storage are kept constant in each idealized system (product of the HP and fuel of the ORC) and are directly taken from the results of the TESPy simulation. 
-     - The inlet ambient streams are also kept constant in each idealized system.
-     - These functions are called every time the advanced exergy analysis of a (partially) idealized system is performed.
-   - In `solve_hp()` and `solve_orc()` the system of equation is solved step-by-step.
-     - This is the crucial part of the advanced exergy analysis where the operating conditions (real/ideal) of each component is considered with the use of logic variables (e.g. `COMP==True` means the compressor operates ideally). 
-     - In these functions part of the equations of the entire system are solved with component-specific functions (e.g. `valve()`). 
-     - At the end of these functions, the DataFrame `df_conns` with the information about all the thermodynamic states is fully defined. 
-     - These functions are called every time the advanced exergy analysis of a (partially) idealized system is performed.
-   - `check_balance_hp()` and `check_balance_orc()` are then used to create a DataFrame with the information about the components. 
-     - Component-specific functions (e.g. `valve_bal()`) are used to check the validity of the energy balance equations.
-     - The power and heat flows are calculated and saved in the DataFrame `df_comps`.
-     - The generated entropy as well as the exergy destruction are calculated and saved in the DataFrame `df_comps`.
-     - These functions are called every time the advanced exergy analysis of a (partially) idealized system is performed.
-   - In `exergy_hp()` and `exergy_orc()` the exergy flows are calculated.
-     - Only the physical exergy is considered.
-     - These functions are called every time the advanced exergy analysis of a (partially) idealized system is performed.
-   - In `perf_adex_hp()` and `perf_adex_orc()` the entire advanced exergy analyses are carried out.
-     - These functions are the only ones called in `main.py`. 
-     - In these functions, the above-mentioned functions are called iteratively. 
-     - All possible cases are considered using the logic variables. 
-     - A new DataFrame `result_df` with the results of the advanced exergy analysis is created. It contains the endogenous, exogenous and mexogenous exergy destruction terms as well as the binary interaction terms. 
-     - In these functions, the minimum temperature difference in the heat exchangers can be checked with the function `qt_diagram()`. If the value is lower than the allowed minimum, the functions signalize it with a warning message. In this case, the design variable should be changed in order to avoid the error. 
+## Methodology 
 
+[(Back to top)](#table-of-contents)
+
+1. **Model and simulate the *base case* of the HP and the ORC:**
+    - The HP and the ORC of the CB are simulated using a self-made simulatenous solver.
+    - The starting values, the design variables and the ambient conditions are provided. 
+    - The selection of the equations to correctly simulate the system is a crucial part.
+    - If necessary, the decision variables are optimized to obtain the highest efficiency.
+2. **Model and simulate the *ideal case* of the HP and the ORC:**
+   - **Maintain constant output:** Ensure the system's product remains is the same of the *base case*.
+   - **Eliminate exergy losses:** Operate components adiabatically, except for those like condensers designed for heat dissipation.
+   - **Idealize components:** Apply specific concepts to idealize all system components.
+     - **Compressors and pumps:** Treated as isentropic compression processes.
+     - **Turbines:** Idealized through isentropic expansion.
+     - **Throttling valves:** Replaced with isentropic expanders for idealization.
+     - **Heat exchangers:** Conceptualized with intermediate reversible cycles (e.g., Lorenz cycle), avoiding detailed cycle simulation.
+   - **Account for additional power flows:** Adjust for power flows resulting from idealization, affecting total power consumption or fuel usage. 
+3. **Model and simulate the *hybrid cases* of the HP and the ORC:**
+   - **Analyze each component individually:** Consider each component in a real operation mode with others idealized, focusing on exergetic efficiency.
+   - **Use enthalpy and entropy values:** Simplify analysis by avoiding direct exergy calculations.
+   - **Formulate efficiency equations:** Integrate exergetic efficiency equations for standard components (compressors, expanders, heat exchangers) into the system's equation set.
+4. **Correct the methods in case of errors:**
+    - In case of errors (e.g. negative temperature difference), the approach should be relaxed, in order to obtain reasonable results.
 ## License
 
 [(Back to top)](#table-of-contents)
