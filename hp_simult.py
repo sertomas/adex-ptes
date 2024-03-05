@@ -4,6 +4,7 @@ import itertools
 import multiprocessing
 import time
 import io
+import json
 import pandas as pd
 from func_fix import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor_deriv, turbo_func, turbo_deriv, he_func,
                       he_deriv, ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
@@ -17,7 +18,7 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
 
 
-def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=False):
+def hp_simultaneous(target_p12, print_results, config, label, adex=False, unavoid=False, plot=False):
     """
      Simulates the performance of a heat pump system under specified conditions and configurations.
 
@@ -41,38 +42,53 @@ def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=F
      - cop (float): The coefficient of performance of the heat pump system.
      """
 
-    try:
-        epsilon = pd.read_csv('outputs/adex_hp/hp_comps_real.csv', index_col=0)['epsilon']  # from base case
-        # Additional code to process epsilon if needed
-    except FileNotFoundError:
-        print('File not found. Please run base case model first!')
-        # Handle the exception (e.g., set epsilon to None or a default value)
-        epsilon = None
+    # Load configurations from JSON file
+    if unavoid:
+        with open('inputs/hp_simult_unavoid.json', 'r') as file:
+            hp_config = json.load(file)
+        try:
+            epsilon = pd.read_csv('outputs/adex_hp/hp_unavoid/hp_comps_real.csv', index_col=0)['epsilon']  # from base case
+            # Additional code to process epsilon if needed
+        except FileNotFoundError:
+            print('File not found. Please run base case model first!')
+            # Handle the exception (e.g., set epsilon to None or a default value)
+            epsilon = None
+    else:
+        with open('inputs/hp_simult_base.json', 'r') as file:
+            hp_config = json.load(file)
+        try:
+            epsilon = pd.read_csv('outputs/adex_hp/hp_comps_real.csv', index_col=0)['epsilon']  # from base case
+            # Additional code to process epsilon if needed
+        except FileNotFoundError:
+            print('File not found. Please run base case model first!')
+            # Handle the exception (e.g., set epsilon to None or a default value)
+            epsilon = None
 
-    wf = 'REFPROP::R1336MZZZ'
-    fluid_tes = 'REFPROP::water'
+    # Access values directly from the loaded JSON configuration
+    wf = hp_config['fluid_properties']['wf']
+    fluid_tes = hp_config['fluid_properties']['fluid_tes']
 
     # TES
-    t21 = 70 + 273.15    # input is known
-    p21 = 5e5            # input is known
-    t22 = 140 + 273.15   # output temperature is set
-    m21 = 10             # dimensioning of the system (full load)
+    t21 = hp_config['tes']['t21']  # K
+    t22 = hp_config['tes']['t22']  # K
+    p21 = hp_config['tes']['p21']  # Pa
+    m21 = hp_config['tes']['m21']  # kg/s
 
     # PRESSURE DROPS
     if config['cond']:
-        pr_cond_cold = 1
-        pr_cond_hot = 0.95
+        pr_cond_cold = hp_config['pressure_drops']['cond']['pr_cond_cold']
+        pr_cond_hot = hp_config['pressure_drops']['cond']['pr_cond_hot']
     else:
         pr_cond_cold = 1
         pr_cond_hot = 1
     if config['ihx']:
-        pr_ihx_hot = 0.985
-        pr_ihx_cold = 0.985
+        pr_ihx_hot = hp_config['pressure_drops']['ihx']['pr_ihx_hot']
+        pr_ihx_cold = hp_config['pressure_drops']['ihx']['pr_ihx_cold']
     else:
         pr_ihx_hot = 1
         pr_ihx_cold = 1
     if config['eva']:
-        pr_eva_cold = 0.95
+        pr_eva_cold = hp_config['pressure_drops']['eva']['pr_eva_cold']
     else:
         pr_eva_cold = 1
 
@@ -80,27 +96,25 @@ def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=F
     pr_cond_part_hot = np.cbrt(pr_cond_hot)    # cond pressure drop is split equally (geom, mean) between ECO-EVA-SH
 
     # AMBIENT
-    t0 = 10 + 273.15    # K
-    p0 = 1.013e5        # bar
+    t0 = hp_config['ambient']['t0']  # K
+    p0 = hp_config['ambient']['p0']  # Pa
 
     # HEAT PUMP
     if config['cond']:
-        ttd_l_cond = 5  # K
+        ttd_l_cond = hp_config['heat_pump']['ttd_l_cond']  # K
     else:
         ttd_l_cond = 0  # K
-
     if config['ihx']:
-        ttd_u_ihx = 5   # K
+        ttd_u_ihx = hp_config['heat_pump']['ttd_u_ihx']   # K
     else:
         ttd_u_ihx = 0   # K
-
     if config['eva']:
-        ttd_l_eva = 5   # K
+        ttd_l_eva = hp_config['heat_pump']['ttd_l_eva']   # K
     else:
         ttd_l_eva = 0   # K
 
     # TECHNICAL PARAMETERS
-    eta_s = 0.85
+    eta_s = hp_config['technical_parameters']['eta_s']  # -
 
     # PRE-CALCULATION
     t12 = t21 + ttd_l_cond
@@ -108,35 +122,16 @@ def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=F
     t16 = t12 - ttd_u_ihx
 
     # STARTING VALUES
-    h11 = 525e3
-    h12 = 290e3
-    h13 = 233e3
-    h14 = 233e3
-    h15 = 400e3
-    h16 = 450e3
-    h18 = 480e3
-    h19 = 370e3
-    h21 = 293e3
-    h22 = 589e3
-    h28 = 190e3
-    h29 = 540e3
+    h_values = hp_config['starting_values']['enthalpies']
+    p_values = hp_config['starting_values']['pressures']
+    m11 = hp_config['starting_values']['mass_flows']['m11']
+    power_comp = hp_config['starting_values']['power_comp']
 
-    p11 = 12e5
-    p13 = 12.3e5
-    p14 = 0.35e5
-    p15 = 0.34e5
-    p16 = 0.32e5
-    p18 = 13e5
-    p19 = 13e5
-    p22 = 5e5
-    p28 = 5e5
-    p29 = 5e5
-
-    m11 = 12.8
-    power_comp = 1000
-
-    variables = np.array([h16, h11, p11, h12, m11, power_comp, h21, h22, h13, h15, p16, p13, h14, p14, p22, p15,
-                          h18, h19, h28, h29, p18, p19, p28, p29])
+    variables = np.array([h_values['h16'], h_values['h11'], p_values['p11'], h_values['h12'], m11, power_comp,
+                          h_values['h21'], h_values['h22'], h_values['h13'], h_values['h15'], p_values['p16'],
+                          p_values['p13'], h_values['h14'], p_values['p14'], p_values['p22'], p_values['p15'],
+                          h_values['h18'], h_values['h19'], h_values['h28'], h_values['h29'], p_values['p18'],
+                          p_values['p19'], p_values['p28'], p_values['p29']])
 
     residual = np.ones(len(variables))
 
@@ -224,7 +219,7 @@ def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=F
         p29_set = pr_func(pr_cond_part_cold, variables[22], variables[23])
 
         residual = np.array([t11_calc_comp, t16_set, t12_set, p11_set, power_calc_comp, m11_calc_cond, t21_set, t22_set,
-                             t13_calc_ihx, p16_set, p13_set, t14_calc_valve, p15_calc_eva, t14_set, p22_set, p14_set, 
+                             t13_calc_ihx, p16_set, p13_set, t14_calc_valve, p15_calc_eva, t14_set, p22_set, p14_set,
                              cond_eco_outlet_sat, cond_eco_en_bal, cond_sh_inlet_sat, cond_sh_en_bal, p18_set,
                              p19_set, p28_set, p29_set], dtype=float)
         jacobian = np.zeros((len(variables), len(variables)))
@@ -616,7 +611,7 @@ def exergy_analysis_hp(t0, p0, df):
             e14m = h14a - h0_wf - t0 * (s14a - s0_wf) * 1e-3
             ef_val = (e13t + e13m - e14m) * df.loc[11, 'm [kg/s]']
             epsilon_val = e14t / (e13t + e13m - e14m)
-    
+
     heat_eva = df.loc[11, 'm [kg/s]'] * (df.loc[15, 'h [kJ/kg]'] - df.loc[14, 'h [kJ/kg]'])
     heat_cond = df.loc[21, 'm [kg/s]'] * (df.loc[22, 'h [kJ/kg]'] - df.loc[21, 'h [kJ/kg]'])
     heat_ihx = df.loc[11, 'm [kg/s]'] * (df.loc[16, 'h [kJ/kg]'] - df.loc[15, 'h [kJ/kg]'])
@@ -626,7 +621,7 @@ def exergy_analysis_hp(t0, p0, df):
     power_ihx = df.loc[11, 'm [kg/s]'] * (df.loc[12, 'h [kJ/kg]'] - df.loc[13, 'h [kJ/kg]'] +
                                             df.loc[15, 'h [kJ/kg]'] - df.loc[16, 'h [kJ/kg]'])
     power_val = df.loc[11, 'm [kg/s]'] * (df.loc[13, 'h [kJ/kg]'] - df.loc[14, 'h [kJ/kg]'])
-    
+
     exergy_efficiency = ((df.loc[21, 'm [kg/s]'] * (df.loc[22, 'e^PH [kJ/kg]'] - df.loc[21, 'e^PH [kJ/kg]']))
                          / (power_comp - power_ihx - power_val - power_cond))
 
@@ -647,10 +642,10 @@ def exergy_analysis_hp(t0, p0, df):
         'eva': np.nan,
         'tot': exergy_efficiency
     }
-    
+
     df_comps = pd.DataFrame(index=['comp', 'cond', 'ihx', 'val', 'eva', 'tot'],
                             columns=['EF [kW]', 'EP [kW]', 'ED [kW]', 'epsilon', 'P [kW]', 'Q [kW]'])
-    
+
     for k in ['comp', 'cond', 'ihx', 'val', 'eva', 'tot']:
         df_comps.loc[k, 'epsilon'] = epsilon[k]
         df_comps.loc[k, 'EF [kW]'] = ef[k]
@@ -711,7 +706,7 @@ def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False
         # adjustment is the smaller, the smaller the difference target_min_td_cond - min_td_cond
         p12_opt += adjustment
 
-        [_, min_t_diff_cond, cop] = hp_simultaneous(p12_opt, print_results=False, label=label, config=config, adex=adex)
+        [_, min_t_diff_cond, cop] = hp_simultaneous(p12_opt, print_results=False, label=label, config=config, adex=adex, unavoid=True)
         diff = abs(min_t_diff_cond - target_min_td_cond)
 
         step += 1
@@ -773,7 +768,7 @@ def set_adex_hp_config(*args):
     return config, label
 
 
-def perform_adex_hp(p12_start, config, label, df_ed, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
+def perform_adex_hp(p12_start, config, label, df_ed, adex=False, unavoid=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
     """
     Executes an advanced exergy analysis for a heat pump system, optimizing a specific target condition, and evaluating system performance.
 
@@ -800,9 +795,9 @@ def perform_adex_hp(p12_start, config, label, df_ed, adex=False, save=False, pri
       indicating an issue with the optimization or simulation setup.
     """
 
-    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=print_results, config=config, label=label, adex=adex)
+    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=print_results, config=config, label=label, adex=adex, unavoid=True)
     p12_opt = find_opt_p12(p12_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
-    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
+    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex, unavoid=True)
     t0 = 283.15   # K
     p0 = 1.013e5  # Pa
     df_components = exergy_analysis_hp(t0, p0, df_opt)
@@ -811,10 +806,16 @@ def perform_adex_hp(p12_start, config, label, df_ed, adex=False, save=False, pri
     if calc_epsilon:
         for col in df_components.columns[:5]:
             df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-        if label == "real":
-            df_components.to_csv(f'outputs/adex_hp/hp_comps_{label}.csv')
+        if unavoid:
+            if label == "real":
+                df_components.to_csv(f'outputs/adex_hp/hp_unavoid/hp_comps_{label}.csv')
+            else:
+                df_components.round(4).to_csv(f'outputs/adex_hp/hp_unavoid/hp_comps_{label}.csv')
         else:
-            df_components.round(4).to_csv(f'outputs/adex_hp/hp_comps_{label}.csv')
+            if label == "real":
+                df_components.to_csv(f'outputs/adex_hp/hp_comps_{label}.csv')
+            else:
+                df_components.round(4).to_csv(f'outputs/adex_hp/hp_comps_{label}.csv')
     if df_opt.loc[12, 'T [°C]'] < df_opt.loc[21, 'T [°C]'] - 1e-3:
         print('Error: Lower temperature difference in COND is negative!')
     if df_opt.loc[11, 'T [°C]'] < df_opt.loc[22, 'T [°C]'] - 1e-3:
@@ -824,7 +825,10 @@ def perform_adex_hp(p12_start, config, label, df_ed, adex=False, save=False, pri
     if df_opt.loc[13, 'T [°C]'] < df_opt.loc[15, 'T [°C]'] - 1e-3:
         print('Error: Lower temperature difference in IHX is negative!')
     if save:
-        round(df_opt, 5).to_csv(f'outputs/adex_hp/hp_streams_{label}.csv')
+        if unavoid:
+            round(df_opt, 5).to_csv(f'outputs/adex_hp/hp_unavoid/hp_streams_{label}.csv')
+        else:
+            round(df_opt, 5).to_csv(f'outputs/adex_hp/hp_streams_{label}.csv')
 
     return df_ed
 
@@ -861,33 +865,33 @@ def main_serial():
 
     # BASE CASE
     [config_base, label_base] = set_adex_hp_config('comp', 'cond', 'ihx', 'val', 'eva')
-    perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
+    perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, unavoid=False, save=True, print_results=True, calc_epsilon=True)
 
     # IDEAL CASE
     [config_ideal, label_ideal] = set_adex_hp_config()
-    perform_adex_hp(13e5, config_ideal, label_ideal, df_ed, adex=False, save=True, print_results=True, calc_epsilon=True)
+    perform_adex_hp(13e5, config_ideal, label_ideal, df_ed, adex=False, unavoid=False, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- single components
     components = ['comp', 'cond', 'ihx', 'val', 'eva']
     for component in components:
         config_i, label_i = set_adex_hp_config(component)
-        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
+        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, unavoid=False, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- pair of components
     component_pairs = list(itertools.combinations(components, 2))
     for pair in component_pairs:
         config_i, label_i = set_adex_hp_config(*pair)
-        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
+        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, unavoid=False, save=True, print_results=True, calc_epsilon=True)
 
     # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
 
 
-def run_hp_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer=None):
-    df_ed = perform_adex_hp(13e5, config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer)
+def run_hp_adex(config, label, df_ed, adex, unavoid, save, print_results, calc_epsilon, output_buffer=None):
+    df_ed = perform_adex_hp(13e5, config, label, df_ed, adex, unavoid, save, print_results, calc_epsilon, output_buffer)
     return df_ed
 
 
-def main_multiprocess():
+def main_multiprocess(unavoid):
     """
     The main function for running a multiprocessed execution of advanced exergy analysis (ADEX) on a heat pump (HP) system.
 
@@ -926,7 +930,7 @@ def main_multiprocess():
 
     # BASE CASE
     [config_base, label_base] = set_adex_hp_config('comp', 'cond', 'ihx', 'val', 'eva')
-    perform_adex_hp(13e5, config_base, label_base, df_ed_base, adex=False, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
+    perform_adex_hp(13e5, config_base, label_base, df_ed_base, adex=False, unavoid=unavoid, save=True, print_results=True, calc_epsilon=True, output_buffer=output_buffer)
 
     tasks = []
 
@@ -935,19 +939,19 @@ def main_multiprocess():
 
         # Ideal Case
         config_ideal, label_ideal = set_adex_hp_config()
-        tasks.append((config_ideal, label_ideal, df_ed_i, True, True, True, True, output_buffer))
+        tasks.append((config_ideal, label_ideal, df_ed_i, True, unavoid, True, True, True, output_buffer))
 
         # Advanced Exergy Analysis -- single components
         components = ['comp', 'cond', 'ihx', 'val', 'eva']
         for component in components:
             config_i, label_i = set_adex_hp_config(component)
-            tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
+            tasks.append((config_i, label_i, df_ed_i, True, unavoid, True, True, True, output_buffer))
 
         # Advanced Exergy Analysis -- pair of components
         component_pairs = list(itertools.combinations(components, 2))
         for pair in component_pairs:
             config_i, label_i = set_adex_hp_config(*pair)
-            tasks.append((config_i, label_i, df_ed_i, True, True, True, True, output_buffer))
+            tasks.append((config_i, label_i, df_ed_i, True, unavoid, True, True, True, output_buffer))
 
         # Map tasks to the pool
         results = pool.starmap(run_hp_adex, tasks)
@@ -967,7 +971,10 @@ def main_multiprocess():
 
     for col in df_ed.columns[:]:
         df_ed[col] = pd.to_numeric(df_ed[col], errors='coerce')
-    df_ed.round(4).to_csv('outputs/adex_hp/hp_adex_ed.csv')
+    if unavoid:
+        df_ed.round(4).to_csv('outputs/adex_hp/hp_unavoid/hp_adex_ed.csv')
+    else:
+        df_ed.round(4).to_csv('outputs/adex_hp/hp_adex_ed.csv')
 
     # Generate combinations
     combinations = []
@@ -982,12 +989,20 @@ def main_multiprocess():
 
     # Initialize DataFrame with MultiIndex
     df_adex_analysis = pd.DataFrame(index=multi_index)
-    epsilon = pd.read_csv('outputs/adex_hp/hp_comps_real.csv', index_col=0)['epsilon']
+    if unavoid:
+        epsilon = pd.read_csv('outputs/adex_hp/hp_unavoid/hp_comps_real.csv', index_col=0)['epsilon']
+    else:
+        epsilon = pd.read_csv('outputs/adex_hp/hp_comps_real.csv', index_col=0)['epsilon']
+
     epsilon['eva'] = float('nan')
 
     for k in components:
-        df_real = pd.read_csv(f'outputs/adex_hp/hp_streams_real.csv', index_col=0)
-        df_k = pd.read_csv(f'outputs/adex_hp/hp_streams_{k}.csv', index_col=0)
+        if unavoid:
+            df_real = pd.read_csv(f'outputs/adex_hp/hp_unavoid/hp_streams_real.csv', index_col=0)
+            df_k = pd.read_csv(f'outputs/adex_hp/hp_unavoid/hp_streams_{k}.csv', index_col=0)
+        else:
+            df_real = pd.read_csv(f'outputs/adex_hp/hp_streams_real.csv', index_col=0)
+            df_k = pd.read_csv(f'outputs/adex_hp/hp_streams_{k}.csv', index_col=0)
         df_adex_analysis.loc[(k, ''), 'ED [kW]'] = df_ed.loc[('real', k), 'ED [kW]']
         df_adex_analysis.loc[(k, ''), 'epsilon [%]'] = epsilon[k] * 100
         df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] = df_ed.loc[(k, k), 'ED [kW]']
@@ -1000,7 +1015,10 @@ def main_multiprocess():
                 k_l = f'{k}_{l}'
                 if (k_l, l) not in df_ed.index:
                     k_l = f'{l}_{k}'
-                df_k_l = pd.read_csv(f'outputs/adex_hp/hp_streams_{k_l}.csv', index_col=0)
+                if unavoid:
+                    df_k_l = pd.read_csv(f'outputs/adex_hp/hp_unavoid/hp_streams_{k_l}.csv', index_col=0)
+                else:
+                    df_k_l = pd.read_csv(f'outputs/adex_hp/hp_streams_{k_l}.csv', index_col=0)
                 df_adex_analysis.loc[(k, l), 'm EN [kg/s]'] = df_k_l.loc[11, 'm [kg/s]']
                 df_adex_analysis.loc[(k, l), 'm EX [kg/s]'] = df_real.loc[11, 'm [kg/s]'] - df_k_l.loc[11, 'm [kg/s]']
                 df_adex_analysis.loc[(k, l), 'ED kl [kW]'] = df_ed.loc[(k_l, k), 'ED [kW]']
@@ -1008,21 +1026,24 @@ def main_multiprocess():
                 df_adex_analysis.loc[(k, l), 'ED EX l [kW]'] = df_adex_analysis.loc[(k, l), 'ED kl [kW]'] - df_adex_analysis.loc[(k, ''), 'ED EN [kW]']
                 sum_ed_ex_l += df_adex_analysis.loc[(k, l), 'ED EX l [kW]']
         df_adex_analysis.loc[(k, ''), 'ED MEXO [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EX [kW]'] - sum_ed_ex_l
-    df_adex_analysis.round(2).to_csv('outputs/adex_hp/hp_adex_analysis.csv')
+    if unavoid:
+        df_adex_analysis.round(2).to_csv('outputs/adex_hp/hp_unavoid/hp_adex_analysis.csv')
+    else:
+        df_adex_analysis.round(2).to_csv('outputs/adex_hp/hp_adex_analysis.csv')
 
     end = time.perf_counter()
     print(f'Elapsed time: {round(end - start, 3)} seconds.')
-    
+
 
 def conv_exergy_analysis():
     t0 = 283.15  # K
     p0 = 1.013e5  # Pa
 
     [config_real, label_real] = set_adex_hp_config('comp', 'eva', 'val', 'ihx', 'cond')
-    p63_start = 13e5  # bar
-    [_, target_diff, _] = hp_simultaneous(p63_start, print_results=True, config=config_real, label=label_real)
-    p63_opt = find_opt_p12(p63_start, target_diff, config=config_real, label=label_real, adex=False)
-    [df_opt, _, _] = hp_simultaneous(p63_opt, print_results=True, config=config_real, label=f'optimal {label_real}')
+    p12_start = 13e5  # bar
+    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=True, config=config_real, label=label_real)
+    p12_opt = find_opt_p12(p12_start, target_diff, config=config_real, label=label_real, adex=False)
+    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_real, label=f'optimal {label_real}')
     df_components = exergy_analysis_hp(t0, p0, df_opt)
     for col in df_components.columns[:5]:
         df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
@@ -1035,21 +1056,22 @@ multi = True  # true: multiprocess, false: sequential computation
 
 if __name__ == '__main__':
     if multi:
-        main_multiprocess()
+        main_multiprocess(True)
+        main_multiprocess(False)
     else:
         main_serial()
 
 
 # TEST OF ONE SINGLE SIMULATION
 '''[config_test, label_test] = set_adex_hp_config('comp', 'eva', 'val', 'ihx', 'cond')  # the compressor is real, the other components are ideal
-[df_test, target_diff, cop_test] = hp_simultaneous(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=True)
+[df_test, target_diff, cop_test] = hp_simultaneous(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=True, unavoid=False)
 p12_opt = find_opt_p12(13e5, target_diff, config=config_test, label=label_test, adex=True)
-[df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_test, label=label_test, adex=True)
+[df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_test, label=label_test, adex=True, unavoid=False)
 t0 = 283.15  # K
 p0 = 1.013e5  # Pa
 df_comps = exergy_analysis_hp(t0, p0, df_opt)
 #print(df_comps)
 
-[_, _, _] = hp_simultaneous(target_p12=p12_opt, print_results=True, config=config_test, label=label_test, adex=True)'''
+[_, _, _] = hp_simultaneous(target_p12=p12_opt, print_results=True, config=config_test, label=label_test, adex=True, unavoid=False)'''
 
 
