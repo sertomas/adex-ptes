@@ -665,7 +665,7 @@ def exergy_analysis_hp(t0, p0, df):
     return df_comps
 
 
-def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False, output_buffer=None):
+def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False, unavoid=False, output_buffer=None):
     """
     Finds the optimal pressure at state point 12 to achieve a target minimum temperature difference in the condenser
     of a heat pump system through an iterative optimization process.
@@ -706,7 +706,7 @@ def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False
         # adjustment is the smaller, the smaller the difference target_min_td_cond - min_td_cond
         p12_opt += adjustment
 
-        [_, min_t_diff_cond, cop] = hp_simultaneous(p12_opt, print_results=False, label=label, config=config, adex=adex, unavoid=True)
+        [_, min_t_diff_cond, cop] = hp_simultaneous(p12_opt, print_results=False, label=label, config=config, adex=adex, unavoid=unavoid)
         diff = abs(min_t_diff_cond - target_min_td_cond)
 
         step += 1
@@ -795,9 +795,9 @@ def perform_adex_hp(p12_start, config, label, df_ed, adex=False, unavoid=False, 
       indicating an issue with the optimization or simulation setup.
     """
 
-    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=print_results, config=config, label=label, adex=adex, unavoid=True)
-    p12_opt = find_opt_p12(p12_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
-    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex, unavoid=True)
+    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=print_results, config=config, label=label, adex=adex, unavoid=unavoid)
+    p12_opt = find_opt_p12(p12_start, target_diff, config=config, label=label, adex=adex, unavoid=unavoid, output_buffer=output_buffer)
+    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex, unavoid=unavoid)
     t0 = 283.15   # K
     p0 = 1.013e5  # Pa
     df_components = exergy_analysis_hp(t0, p0, df_opt)
@@ -808,7 +808,7 @@ def perform_adex_hp(p12_start, config, label, df_ed, adex=False, unavoid=False, 
             df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
         if unavoid:
             if label == "real":
-                df_components.to_csv(f'outputs/adex_hp/hp_unavoid/hp_comps_{label}.csv')
+                df_components.round(4).to_csv(f'outputs/adex_hp/hp_unavoid/hp_comps_{label}.csv')
             else:
                 df_components.round(4).to_csv(f'outputs/adex_hp/hp_unavoid/hp_comps_{label}.csv')
         else:
@@ -833,7 +833,7 @@ def perform_adex_hp(p12_start, config, label, df_ed, adex=False, unavoid=False, 
     return df_ed
 
 
-def main_serial():
+def main_serial(unavoid):
     """
     The main function for running a serial (sequential) execution of advanced exergy analysis (ADEX) on a heat pump (HP) system.
 
@@ -865,23 +865,23 @@ def main_serial():
 
     # BASE CASE
     [config_base, label_base] = set_adex_hp_config('comp', 'cond', 'ihx', 'val', 'eva')
-    perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, unavoid=False, save=True, print_results=True, calc_epsilon=True)
+    perform_adex_hp(13e5, config_base, label_base, df_ed, adex=False, unavoid=unavoid, save=True, print_results=True, calc_epsilon=True)
 
     # IDEAL CASE
     [config_ideal, label_ideal] = set_adex_hp_config()
-    perform_adex_hp(13e5, config_ideal, label_ideal, df_ed, adex=False, unavoid=False, save=True, print_results=True, calc_epsilon=True)
+    perform_adex_hp(13e5, config_ideal, label_ideal, df_ed, adex=False, unavoid=unavoid, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- single components
     components = ['comp', 'cond', 'ihx', 'val', 'eva']
     for component in components:
         config_i, label_i = set_adex_hp_config(component)
-        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, unavoid=False, save=True, print_results=True, calc_epsilon=True)
+        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, unavoid=unavoid, save=True, print_results=True, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- pair of components
     component_pairs = list(itertools.combinations(components, 2))
     for pair in component_pairs:
         config_i, label_i = set_adex_hp_config(*pair)
-        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, unavoid=False, save=True, print_results=True, calc_epsilon=True)
+        perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, unavoid=unavoid, save=True, print_results=True, calc_epsilon=True)
 
     # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
 
@@ -1035,43 +1035,62 @@ def main_multiprocess(unavoid):
     print(f'Elapsed time: {round(end - start, 3)} seconds.')
 
 
-def conv_exergy_analysis():
+def conv_exergy_analysis(unavoid):
     t0 = 283.15  # K
     p0 = 1.013e5  # Pa
 
     [config_real, label_real] = set_adex_hp_config('comp', 'eva', 'val', 'ihx', 'cond')
     p12_start = 13e5  # bar
-    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=True, config=config_real, label=label_real)
-    p12_opt = find_opt_p12(p12_start, target_diff, config=config_real, label=label_real, adex=False)
-    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_real, label=f'optimal {label_real}')
+    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=True, config=config_real, label=label_real, unavoid=unavoid)
+    p12_opt = find_opt_p12(p12_start, target_diff, config=config_real, label=label_real, adex=False, unavoid=unavoid)
+    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_real, label=f'optimal {label_real}', unavoid=unavoid)
     df_components = exergy_analysis_hp(t0, p0, df_opt)
     for col in df_components.columns[:5]:
         df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
     df_components.to_csv(f'outputs/adex_hp/hp_comps_real.csv')  # DO NOT ROUND THIS because it's used for the next steps
 
 
+def post_process_adex_hp():
+    results_base = pd.read_csv(f'outputs/adex_hp/hp_adex_analysis.csv', index_col=[0, 1])
+    results_unavoid = pd.read_csv(f'outputs/adex_hp/hp_unavoid/hp_adex_analysis.csv', index_col=[0, 1])
+    components = results_base.index.get_level_values(0).unique().tolist()
+    final_results = pd.DataFrame(index=components)
+    for k in components:
+        final_results.loc[k, 'ED [kW]'] = results_base.loc[(k, None), 'ED [kW]']
+        final_results.loc[k, 'ED EN [kW]'] = results_base.loc[(k, None), 'ED EN [kW]']
+        final_results.loc[k, 'ED EX [kW]'] = results_base.loc[(k, None), 'ED EX [kW]']
+        final_results.loc[k, 'ED UN [kW]'] = results_unavoid.loc[(k, None), 'ED [kW]']
+        final_results.loc[k, 'ED AV [kW]'] = results_base.loc[(k, None), 'ED [kW]'] - results_unavoid.loc[(k, None), 'ED [kW]']
+        final_results.loc[k, 'ED EN UN [kW]'] = results_unavoid.loc[(k, None), 'ED EN [kW]']
+        final_results.loc[k, 'ED EX UN [kW]'] = results_unavoid.loc[(k, None), 'ED [kW]'] - results_unavoid.loc[(k, None), 'ED EN [kW]']
+        final_results.loc[k, 'ED EN AV [kW]'] = results_base.loc[(k, None), 'ED EN [kW]'] - final_results.loc[k, 'ED EN UN [kW]']
+        final_results.loc[k, 'ED EX AV [kW]'] = final_results.loc[k, 'ED AV [kW]'] - final_results.loc[k, 'ED EN AV [kW]']
+    final_results.round(2).to_csv('outputs/final_results.csv')
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 # ADVANCED EXERGY ANALYSIS
 multi = True  # true: multiprocess, false: sequential computation
 
-if __name__ == '__main__':
+'''if __name__ == '__main__':
     if multi:
-        main_multiprocess(True)
-        main_multiprocess(False)
+        main_multiprocess(unavoid=False)
+        main_multiprocess(unavoid=True)
     else:
-        main_serial()
+        main_serial(unavoid=False)
+        main_serial(unavoid=True)'''
 
+post_process_adex_hp()
 
 # TEST OF ONE SINGLE SIMULATION
-'''[config_test, label_test] = set_adex_hp_config('comp', 'eva', 'val', 'ihx', 'cond')  # the compressor is real, the other components are ideal
+'''[config_test, label_test] = set_adex_hp_config('comp', 'eva', 'val', 'ihx', 'cond')
 [df_test, target_diff, cop_test] = hp_simultaneous(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=True, unavoid=False)
 p12_opt = find_opt_p12(13e5, target_diff, config=config_test, label=label_test, adex=True)
 [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_test, label=label_test, adex=True, unavoid=False)
-t0 = 283.15  # K
-p0 = 1.013e5  # Pa
-df_comps = exergy_analysis_hp(t0, p0, df_opt)
-#print(df_comps)
 
-[_, _, _] = hp_simultaneous(target_p12=p12_opt, print_results=True, config=config_test, label=label_test, adex=True, unavoid=False)'''
+[config_test, label_test] = set_adex_hp_config('comp', 'eva', 'val', 'ihx', 'cond')
+[df_test, target_diff, cop_test] = hp_simultaneous(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=True, unavoid=True)
+p12_opt = find_opt_p12(13e5, target_diff, config=config_test, label=label_test, adex=True)
+[df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_test, label=label_test, adex=True, unavoid=True)
 
-
+'''
