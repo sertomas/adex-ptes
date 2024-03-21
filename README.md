@@ -24,11 +24,11 @@ To set up the project environment, follow these steps:
 
 2. **Clone the Repository**: Download the project code by cloning the repository. Open your terminal or command prompt and run:
    ```bash
-   git clone https://github.com/sertomas/adex-carnot-battery.git
+   git clone https://github.com/sertomas/adex-ptes.git
    ```
    Then, navigate to the project directory:
    ```bash
-   cd adex-carnot-battery
+   cd adex-ptes
    ```
 
 3. **Create a Virtual Environment**: It's a good practice to create a virtual environment for Python projects. This isolates your project's dependencies from the rest of your system. Use the following command:
