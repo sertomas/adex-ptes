@@ -5,8 +5,8 @@ import matplotlib.patches as mpatches
 plt.rc('font', family='Arial', size=18)
 
 # Load the data
-df_hp_comps_base = pd.read_csv('../adex_hp/hp_comps_real.csv', index_col=0)
-df_orc_comps_base = pd.read_csv('../adex_orc/orc_comps_real.csv', index_col=0)
+df_hp_comps_base = pd.read_csv('../adex_hp/hp_comps_all_real.csv', index_col=0)
+df_orc_comps_base = pd.read_csv('../adex_orc/orc_comps_all_real.csv', index_col=0)
 
 ep = [100,
       df_hp_comps_base.loc['tot', 'epsilon']*100,

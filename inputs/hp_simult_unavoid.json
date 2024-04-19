@@ -1,18 +1,4 @@
 {
-    "ambient": {
-        "t0": 283.15,
-        "p0": 101300
-    },
-    "fluid_properties": {
-        "wf": "REFPROP::R1336MZZZ",
-        "fluid_tes": "REFPROP::water"
-    },
-    "tes": {
-        "t21": 343.15,
-        "t22": 413.15,
-        "p21": 500000,
-        "m21": 10
-    },
     "pressure_drops": {
         "cond": {
             "pr_cond_cold": 1,

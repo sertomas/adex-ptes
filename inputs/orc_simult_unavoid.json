@@ -1,25 +1,11 @@
 {
-    "ambient": {
-        "t0": 283.15,
-        "p0": 101300
-    },
-    "fluid_properties": {
-        "wf": "REFPROP::R152a",
-        "fluid_tes": "REFPROP::water"
-    },
-    "tes": {
-        "t42": 343.15,
-        "t41": 413.15,
-        "p41": 500000,
-        "m41": 10
-    },
     "pressure_drops": {
         "cond": {
             "pr_cond_hot": 0.98
         },
         "ihx": {
-            "pr_ihx_hot": 0.995,
-            "pr_ihx_cold": 0.995
+            "pr_ihx_hot": 0.99,
+            "pr_ihx_cold": 0.99
         },
         "eva": {
             "pr_eva_cold": 0.98,

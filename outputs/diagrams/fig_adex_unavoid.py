@@ -44,8 +44,8 @@ def plot_exergy_destruction(ax, df, name_mapping, components, title, colors):
 
 
 # Ensure to define or load your DataFrame `df_hp_mexo` and `df_orc_mexo` here
-df_hp_mexo = pd.read_csv('../adex_hp/final_results_hp.csv', index_col=[0, 1])
-df_orc_mexo = pd.read_csv('../adex_orc/final_results_orc.csv', index_col=[0, 1])
+df_hp_mexo = pd.read_csv('../adex_hp/hp_adex_analysis.csv', index_col=[0, 1])
+df_orc_mexo = pd.read_csv('../adex_orc/orc_adex_analysis.csv', index_col=[0, 1])
 
 # Define your components and other variables as before, keeping the original data labels
 components_hp = ["comp", "cond", "ihx", "val", "eva"]  # Original component names
