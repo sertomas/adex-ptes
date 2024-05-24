@@ -52,7 +52,7 @@ To set up the project environment, follow these steps:
 
 Note: If you intended to include instructions for installing dependencies using a YAML file with Conda, you might need to adjust the command for installing dependencies accordingly. For example:
 ```bash
-conda env create -f adex_carnot_battery.yaml
+conda env create -f adex-ptes.yaml
 ```
 Then, activate the Conda environment:
 ```bash
@@ -65,13 +65,13 @@ Ensure you replace `<env_name>` with the name of your environment as specified i
 [(Back to top)](#table-of-contents)
 
 1. **Run**
-   - To obtain all the results, run `hp_simult.py` and `orc_simult.py`. The equation system, the starting values and all the parameters are saved here. 
-   - The file `func_var.py` contain general functions for the modeling of the equation system
+   - To obtain all the results, run `hp.py` and `orc.py`. The equation system, the starting values and all the parameters are saved here. 
+   - The file `functions.py` contain general functions for the modeling of the equation system
    - The results from the advanced exergy analysis of the HP and the ORC are saved in `/outputs/adex_hp` and `/outputs/adex_orc` respectively. 
    - All the diagrams created during the simulations are saved in `/outputs/diagrams`.
 2. **Changes** 
-   - If you want to change the fluid of the HP or of the ORC, or change the ambient conditions, you can do it in `hp_simult.py` and `orc_simult.py`. 
-   - If you want to change the design of your subsystem, you should change the equation system in `hp_simult.py` and `orc_simult.py`.
+   - If you want to change the fluid of the HP or of the ORC, or change the ambient conditions, you can do it in `hp.py` and `orc.py`. 
+   - If you want to change the design of your subsystem, you should change the equation system in `hp.py` and `orc.py`.
 
 ## Methodology 
 
