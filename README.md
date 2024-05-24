@@ -1,4 +1,4 @@
-# Advanced Exergy Analysis of a Carnot Battery
+# Advanced Exergy Analysis of a Pumped Thermal Energy Storage
 
 [![forthebadge](http://forthebadge.com/images/badges/made-with-python.svg)](https://www.python.org/)
 [<img src="https://raw.githubusercontent.com/oemof/tespy/9915f013c40fe418947a6e4c1fd0cd0eba45893c/docs/api/_images/logo_tespy_big.svg" alt="drawing" width="180"/>](https://github.com/oemof/tespy)
