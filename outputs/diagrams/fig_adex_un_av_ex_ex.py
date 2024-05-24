@@ -3,7 +3,27 @@ import matplotlib.pyplot as plt
 
 plt.rc('font', family='Arial', size=18)
 
+
 def plot_exergy_components(ax, df, name_mapping, components, title, colors, labels):
+    """
+    Plots exergy destruction for various components of a system, differentiating between unavoidable and avoidable parts.
+
+    This function creates a horizontal bar plot for each specified component, showing the contribution of unavoidable endogenous,
+    unavoidable exogenous, avoidable endogenous, and avoidable exogenous exergy destruction. Positive and negative values are plotted
+    separately to align correctly.
+
+    Parameters:
+    - ax (matplotlib.axes.Axes): The axes on which to plot.
+    - df (DataFrame): A DataFrame containing the exergy destruction data for the components.
+    - name_mapping (dict): A dictionary mapping component names to their display names.
+    - components (list): A list of component names to plot.
+    - title (str): The title for the plot.
+    - colors (list): A list of colors to use for the different parts of exergy destruction.
+    - labels (list): A list of labels corresponding to the different parts of exergy destruction.
+
+    Returns:
+    None
+    """
     # Mapping of component names for display purposes
     components_mapped = [name_mapping.get(component, component).upper() for component in components]
 

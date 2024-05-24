@@ -6,19 +6,19 @@ import time
 import io
 import json
 import pandas as pd
-from func_fix import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor_deriv, turbo_func, turbo_deriv, he_func,
-                      he_deriv, ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
-                      x_saturation_func, x_saturation_deriv, qt_diagram, eps_compressor_func, eps_compressor_deriv, 
-                      eps_real_he_func, eps_real_he_deriv, eps_real_ihx_func, eps_real_ihx_deriv, simple_he_func,
-                      simple_he_deriv, ideal_ihx_entropy_func, ideal_ihx_entropy_deriv, ideal_he_entropy_func,
-                      ideal_he_entropy_deriv, ideal_valve_entropy_func, ideal_valve_entropy_deriv, he_with_p_func,
-                      he_with_p_deriv, same_temperature_func, same_temperature_deriv)
+from functions import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor_deriv, turbo_func, turbo_deriv, he_func,
+                       he_deriv, ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
+                       x_saturation_func, x_saturation_deriv, qt_diagram, eps_compressor_func, eps_compressor_deriv,
+                       eps_real_he_func, eps_real_he_deriv, eps_real_ihx_func, eps_real_ihx_deriv, simple_he_func,
+                       simple_he_deriv, ideal_ihx_entropy_func, ideal_ihx_entropy_deriv, ideal_he_entropy_func,
+                       ideal_he_entropy_deriv, ideal_valve_entropy_func, ideal_valve_entropy_deriv, he_with_p_func,
+                       he_with_p_deriv, same_temperature_func, same_temperature_deriv)
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', None)
 
 
-def hp_simultaneous(target_p12, print_results, config, label, adex=False, plot=False):
+def solve_hp(target_p12, print_results, config, label, adex=False, plot=False):
     """
      Simulates the performance of a heat pump system under specified conditions and configurations.
 
@@ -682,6 +682,54 @@ def exergy_analysis_hp(t0, p0, df):
     return df_comps
 
 
+def set_adex_hp_config(comp='real', cond='real', ihx='real', val='real', eva='real'):
+    """
+    Generates a configuration dictionary and label for an advanced exergy analysis of a heat pump system based on the state of its components.
+
+    This version of the function constructs the label with the following rules:
+    1. If a component is 'real', it's mentioned by name in the label unless another component is 'unavoid'.
+    2. If a component is 'ideal', it's not mentioned in the label.
+    3. If a component is 'unavoid', it's mentioned by name with '_unavoid' appended.
+    4. If there's any 'unavoid' component, 'real' components are not included in the label.
+    5. If all components share the same state, the label is 'all_real', 'all_ideal', or 'all_unavoid' accordingly.
+
+    Parameters:
+    - comp, cond, ihx, val, eva (str): States of the compressor, condenser, internal heat exchanger, valve, and evaporator respectively.
+
+    Returns:
+    - config (dict): States of heat pump components.
+    - label (str): Identifier for the configuration.
+    """
+
+    config = {
+        'comp': comp,
+        'cond': cond,
+        'ihx': ihx,
+        'val': val,
+        'eva': eva
+    }
+
+    if all(state == 'real' for state in config.values()):
+        return config, 'all_real'
+    elif all(state == 'ideal' for state in config.values()):
+        return config, 'all_ideal'
+    elif all(state == 'unavoid' for state in config.values()):
+        return config, 'all_unavoid'
+
+    label_parts = []
+    has_unavoid = any(state == 'unavoid' for state in config.values())
+
+    for component, state in config.items():
+        if state == 'unavoid':
+            label_parts.append(f'{component}_unavoid')
+        elif state == 'real' and not has_unavoid:
+            label_parts.append(component)
+
+    label = '_'.join(label_parts)
+
+    return config, label
+
+
 def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False, output_buffer=None):
     """
     Finds the optimal pressure at state point 12 to achieve a target minimum temperature difference in the condenser
@@ -732,7 +780,7 @@ def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False
         # adjustment is the smaller, the smaller the difference target_min_td_cond - min_td_cond
         p12_opt += adjustment
 
-        [_, min_t_diff_cond, cop] = hp_simultaneous(p12_opt, print_results=False, label=label, config=config, adex=adex)
+        [_, min_t_diff_cond, cop] = solve_hp(p12_opt, print_results=False, label=label, config=config, adex=adex)
         diff = abs(min_t_diff_cond - target_min_td_cond)
 
         step += 1
@@ -745,54 +793,6 @@ def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, adex=False
         output_buffer.append(buffer.getvalue())
 
     return p12_opt
-
-
-def set_adex_hp_config(comp='real', cond='real', ihx='real', val='real', eva='real'):
-    """
-    Generates a configuration dictionary and label for an advanced exergy analysis of a heat pump system based on the state of its components.
-
-    This version of the function constructs the label with the following rules:
-    1. If a component is 'real', it's mentioned by name in the label unless another component is 'unavoid'.
-    2. If a component is 'ideal', it's not mentioned in the label.
-    3. If a component is 'unavoid', it's mentioned by name with '_unavoid' appended.
-    4. If there's any 'unavoid' component, 'real' components are not included in the label.
-    5. If all components share the same state, the label is 'all_real', 'all_ideal', or 'all_unavoid' accordingly.
-
-    Parameters:
-    - comp, cond, ihx, val, eva (str): States of the compressor, condenser, internal heat exchanger, valve, and evaporator respectively.
-
-    Returns:
-    - config (dict): States of heat pump components.
-    - label (str): Identifier for the configuration.
-    """
-
-    config = {
-        'comp': comp,
-        'cond': cond,
-        'ihx': ihx,
-        'val': val,
-        'eva': eva
-    }
-
-    if all(state == 'real' for state in config.values()):
-        return config, 'all_real'
-    elif all(state == 'ideal' for state in config.values()):
-        return config, 'all_ideal'
-    elif all(state == 'unavoid' for state in config.values()):
-        return config, 'all_unavoid'
-
-    label_parts = []
-    has_unavoid = any(state == 'unavoid' for state in config.values())
-
-    for component, state in config.items():
-        if state == 'unavoid':
-            label_parts.append(f'{component}_unavoid')
-        elif state == 'real' and not has_unavoid:
-            label_parts.append(component)
-
-    label = '_'.join(label_parts)
-
-    return config, label
 
 
 def perform_adex_hp(p12_start, config, label, df_ed, adex=False, save=False, print_results=False, calc_epsilon=False, output_buffer=None):
@@ -823,11 +823,11 @@ def perform_adex_hp(p12_start, config, label, df_ed, adex=False, save=False, pri
     """
 
     # Run first simulation and get pinch point in condenser (target_diff)
-    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=print_results, config=config, label=label, adex=adex)
+    [_, target_diff, _] = solve_hp(p12_start, print_results=print_results, config=config, label=label, adex=adex)
     # Search for optimal p12 according to minimum pinch point in cond
     p12_opt = find_opt_p12(p12_start, target_diff, config=config, label=label, adex=adex, output_buffer=output_buffer)
     # Run simulation with optimal p12 and minimum pinch point in cond
-    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
+    [df_opt, _, _] = solve_hp(p12_opt, print_results=print_results, config=config, label=f'optimal {label}', adex=adex)
 
     # Run conventional exergy analysis to get exergetic efficiencies and exergy destruction rates
     with open('inputs/hp_simult_base.json', 'r') as file:
@@ -865,7 +865,8 @@ def main_serial():
 
     This function sequentially executes the ADEX analysis for different configurations of a HP system, starting with the base case,
     followed by the ideal case, single components in real conditions, and pairs of components in real conditions. Each configuration's
-    exergy destruction is calculated, and the results are saved and optionally printed.
+    exergy destruction is calculated, and the results are saved and optionally printed. Avoidable/Unavoidable is not
+    considered. In this case, please run the multiprocess function. This function should be used only for debugging.
 
     The function:
     - Sets up configurations for the base case, ideal case, individual components, and pairs of components.
@@ -878,13 +879,8 @@ def main_serial():
 
     Returns:
     None
-
-    Note:
-    This function does not accept any arguments and does not return any values. Instead, it directly modifies global variables
-    and performs file I/O operations to save the analysis results.
     """
 
-    # BEGIN OF MAIN (sequentially) -------------------------------------------------------------------------------------
     columns = ['ED']
     multi_index = pd.MultiIndex(levels=[[], []], codes=[[], []], names=['Label', 'Component'])
     df_ed = pd.DataFrame(columns=columns, index=multi_index)
@@ -909,10 +905,29 @@ def main_serial():
         config_i, label_i = set_adex_hp_config(*pair)
         perform_adex_hp(13e5, config_i, label_i, df_ed, adex=True, save=True, print_results=True, calc_epsilon=True)
 
-    # END OF MAIN (sequentially) ---------------------------------------------------------------------------------------
-
 
 def run_hp_adex(config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer=None):
+    """
+    Runs the advanced exergy analysis for a heat pump system with a given configuration and label.
+
+    This function performs the advanced exergy analysis by calling the `perform_adex_hp` function with a starting
+    pressure of 1.3 MPa (13e5 Pa) at state point 12. It updates the DataFrame with the exergy destruction results
+    and returns it.
+
+    Parameters:
+    - config (dict): Configuration dictionary specifying which components are included in the simulation.
+    - label (str): A label for the simulation case, used in printing and saving results.
+    - df_ed (DataFrame): A DataFrame to store the exergy destruction (ED) results for each component of the system.
+    - adex (bool): If True, uses advanced exergetic analysis parameters.
+    - save (bool): If True, saves the simulation results to CSV files.
+    - print_results (bool): If True, prints the results of the simulation.
+    - calc_epsilon (bool): If True, calculates the exergy efficiency of the system components.
+    - output_buffer (io.StringIO, optional): A buffer to capture and return the optimization process output. If None, output is not captured.
+
+    Returns:
+    - df_ed (DataFrame): Updated DataFrame with the exergy destruction (ED) results for each component.
+    """
+
     df_ed = perform_adex_hp(13e5, config, label, df_ed, adex, save, print_results, calc_epsilon, output_buffer)
     return df_ed
 
@@ -940,6 +955,7 @@ def main_multiprocess():
     - It directly performs file I/O operations to save the analysis results.
     - Multiprocessing is used to parallelize the execution of simulation tasks, improving performance on multicore systems.
     """
+
 
     start = time.perf_counter()
 
@@ -1090,40 +1106,8 @@ def main_multiprocess():
     print(f'Elapsed time: {round(end - start, 3)} seconds.')
 
 
-def conv_exergy_analysis(unavoid):
-    t0 = 283.15  # K
-    p0 = 1.013e5  # Pa
-
-    [config_real, label_real] = set_adex_hp_config('comp', 'eva', 'val', 'ihx', 'cond')
-    p12_start = 13e5  # bar
-    [_, target_diff, _] = hp_simultaneous(p12_start, print_results=True, config=config_real, label=label_real)
-    p12_opt = find_opt_p12(p12_start, target_diff, config=config_real, label=label_real, adex=False)
-    [df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_real, label=f'optimal {label_real}')
-    df_components = exergy_analysis_hp(t0, p0, df_opt)
-    for col in df_components.columns[:5]:
-        df_components[col] = pd.to_numeric(df_components[col], errors='coerce')
-    df_components.to_csv(f'outputs/adex_hp/hp_comps_all_real.csv')  # DO NOT ROUND THIS, it's used for the next steps
-
-
-def post_process_adex_hp():
-    results_base = pd.read_csv(f'outputs/adex_hp/hp_adex_analysis.csv', index_col=[0, 1])
-    results_unavoid = pd.read_csv(f'outputs/adex_hp/hp_unavoid/hp_adex_analysis.csv', index_col=[0, 1])
-    components = results_base.index.get_level_values(0).unique().tolist()
-    final_results = pd.DataFrame(index=components)
-    for k in components:
-        final_results.loc[k, 'ED [kW]'] = results_base.loc[(k, None), 'ED [kW]']
-        final_results.loc[k, 'ED EN [kW]'] = results_base.loc[(k, None), 'ED EN [kW]']
-        final_results.loc[k, 'ED EX [kW]'] = results_base.loc[(k, None), 'ED EX [kW]']
-        final_results.loc[k, 'ED UN [kW]'] = results_unavoid.loc[(k, None), 'ED [kW]']
-        final_results.loc[k, 'ED AV [kW]'] = results_base.loc[(k, None), 'ED [kW]'] - results_unavoid.loc[(k, None), 'ED [kW]']
-        final_results.loc[k, 'ED EN UN [kW]'] = results_unavoid.loc[(k, None), 'ED EN [kW]']
-        final_results.loc[k, 'ED EX UN [kW]'] = results_unavoid.loc[(k, None), 'ED [kW]'] - results_unavoid.loc[(k, None), 'ED EN [kW]']
-        final_results.loc[k, 'ED EN AV [kW]'] = results_base.loc[(k, None), 'ED EN [kW]'] - final_results.loc[k, 'ED EN UN [kW]']
-        final_results.loc[k, 'ED EX AV [kW]'] = final_results.loc[k, 'ED AV [kW]'] - final_results.loc[k, 'ED EN AV [kW]']
-    final_results.round(2).to_csv('outputs/final_results.csv')
-
-
 # ----------------------------------------------------------------------------------------------------------------------
+
 # ADVANCED EXERGY ANALYSIS
 multi = True  # true: multiprocess, false: sequential computation
 
@@ -1133,16 +1117,14 @@ if __name__ == '__main__':
     else:
         main_serial()
 
-# post_process_adex_hp()
-
 # TEST OF ONE SINGLE SIMULATION
 '''[config_test, label_test] = set_adex_hp_config('real', 'unavoid', 'real', 'real', 'real')
-[df_test, target_diff, cop_test] = hp_simultaneous(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=False)
+[df_test, target_diff, cop_test] = solve_hp(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=False)
 p12_opt = find_opt_p12(13e5, target_diff, config=config_test, label=label_test, adex=False)
-[df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_test, label=label_test, adex=False, plot=True)
+[df_opt, _, _] = solve_hp(p12_opt, print_results=True, config=config_test, label=label_test, adex=False, plot=True)
 
 [config_test, label_test] = set_adex_hp_config('real', 'real', 'real', 'real', 'real')
-[df_test, target_diff, cop_test] = hp_simultaneous(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=False)
+[df_test, target_diff, cop_test] = solve_hp(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=False)
 p12_opt = find_opt_p12(13e5, target_diff, config=config_test, label=label_test, adex=False)
-[df_opt, _, _] = hp_simultaneous(p12_opt, print_results=True, config=config_test, label=label_test, adex=False, plot=True)
+[df_opt, _, _] = solve_hp(p12_opt, print_results=True, config=config_test, label=label_test, adex=False, plot=True)
 '''

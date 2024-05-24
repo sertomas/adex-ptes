@@ -82,6 +82,35 @@ for i, bar in enumerate(ax.patches[:len(ep_reversed)]):  # Iterate only through 
             # weight='bold',  # Bold text
             )
 
+# Adding labels inside the bars for HP components
+left_position_hp = ep_reversed[3]
+for i, value in enumerate(ed_hp):
+    if labels_hp[i] in ['COND1', 'COMP']:
+        ax.text(x=left_position_hp + value / 2,
+                y=ax.patches[len(ep_reversed) + i].get_y() + ax.patches[len(ep_reversed) + i].get_height() / 2,
+                s=f"{value:.1f}",
+                ha='center',
+                va='center',
+                color='black')
+    left_position_hp += value
+
+# Adding labels inside the bars for ORC components
+left_position_orc = ep_reversed[1] + sum(ed_hp)
+orc_index = len(ep_reversed) + len(ed_hp)  # Index offset for ORC bars
+
+for i, value in enumerate(ed_orc):
+    if labels_orc[i] == 'EVA2':
+        bar = ax.patches[orc_index + i]  # Get the correct ORC bar
+        ax.text(x=bar.get_x() + bar.get_width() / 2,  # Position text at the center of the bar's width
+                y=bar.get_y() + bar.get_height() / 2,  # Center text vertically in the bar
+                s=f"{value:.1f}",  # Use the corresponding value for the text
+                ha='center',  # Center text horizontally
+                va='center',  # Center text vertically
+                color='black')
+    left_position_orc += value
+
+
+
 # Creating custom legend
 legend_patches = [mpatches.Patch(color=colors_hp[i], label=labels_hp[i]) for i in range(len(labels_hp))] + \
                  [mpatches.Patch(color=colors_orc[i], label=labels_orc[i]) for i in range(len(labels_orc))]

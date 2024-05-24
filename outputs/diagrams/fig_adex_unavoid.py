@@ -15,8 +15,13 @@ def plot_exergy_destruction(ax, df, name_mapping, components, title, colors):
     for component in components:
         totals_comp = {'positive': [0, 0, 0, 0], 'negative': [0, 0, 0, 0]}
 
-        for i, col in enumerate(['ED EN UN [kW]', 'ED EX UN [kW]', 'ED EN AV [kW]', 'ED EX AV [kW]']):
-            value = df.loc[component, col]
+        for i, col in enumerate(['ED UN EN [kW]', 'ED UN EX [kW]', 'ED AV EN [kW]', 'ED AV EX [kW]']):
+            try:
+                value = df.loc[(component, slice(None)), col].dropna().iloc[0]
+            except (KeyError, IndexError):
+                print(f"KeyError or IndexError: ({component}, {col}) not found in DataFrame.")
+                continue
+
             if value > 0:
                 totals_comp['positive'][i] = value
             else:
@@ -32,8 +37,8 @@ def plot_exergy_destruction(ax, df, name_mapping, components, title, colors):
             left = 0
             for total in totals:
                 if total != 0:
-                    color_index = ['ED EN UN [kW]', 'ED EX UN [kW]', 'ED EN AV [kW]', 'ED EX AV [kW]'].index(
-                        ['ED EN UN [kW]', 'ED EX UN [kW]', 'ED EN AV [kW]', 'ED EX AV [kW]'][totals.index(total)])
+                    color_index = ['ED UN EN [kW]', 'ED UN EX [kW]', 'ED AV EN [kW]', 'ED AV EX [kW]'].index(
+                        ['ED UN EN [kW]', 'ED UN EX [kW]', 'ED AV EN [kW]', 'ED AV EX [kW]'][totals.index(total)])
                     ax.barh(comp_mapped, total, left=left, color=colors[color_index], edgecolor="black", linewidth=1,
                             height=0.9)
                     left += total
@@ -51,19 +56,22 @@ df_orc_mexo = pd.read_csv('../adex_orc/orc_adex_analysis.csv', index_col=[0, 1])
 components_hp = ["comp", "cond", "ihx", "val", "eva"]  # Original component names
 components_orc = ["pump", "eva", "ihx", "exp", "cond"]
 colors = ['#ccccff', '#ccffcc', '#ff6666', '#ffcc99']
-labels = [r'$\dot{E}^\mathrm{EN}_{\mathrm{D},k}$', r'$\dot{E}^\mathrm{MEXO}_{\mathrm{D},k}$', r'$\dot{E}^{\mathrm{EX},kl}_{\mathrm{D},k}$', 'ED EX AV [kW]']
+labels = [r'$\dot{E}^\mathrm{EN}_{\mathrm{D},k}$', r'$\dot{E}^\mathrm{MEXO}_{\mathrm{D},k}$',
+          r'$\dot{E}^{\mathrm{EX},kl}_{\mathrm{D},k}$', 'ED AV EX [kW]']
 
 # Assuming `df_hp_mexo` and `df_orc_mexo` are your DataFrame variables
 
 fig, axs = plt.subplots(1, 2, figsize=(14.5, 3.2))
 
 # Plot for Heat Pump
-name_mapping_hp = {'eva': 'EVA1', 'comp': 'COMP', 'cond': 'COND1', 'ihx': 'IHX1', 'val': 'VAL', 'pump': 'PUMP', 'exp': 'EXP'}
-plot_exergy_destruction(axs[0], df_hp_mexo, name_mapping_hp, components_hp, "HP", colors, labels)
+name_mapping_hp = {'eva': 'EVA1', 'comp': 'COMP', 'cond': 'COND1', 'ihx': 'IHX1', 'val': 'VAL', 'pump': 'PUMP',
+                   'exp': 'EXP'}
+plot_exergy_destruction(axs[0], df_hp_mexo, name_mapping_hp, components_hp, "HP", colors)
 
 # Plot for ORC
-name_mapping_orc = {'eva': 'EVA2', 'comp': 'COMP', 'cond': 'COND2', 'ihx': 'IHX2', 'val': 'VAL', 'pump': 'PUMP', 'exp': 'EXP'}
-plot_exergy_destruction(axs[1], df_orc_mexo, name_mapping_orc, components_orc, "ORC", colors, labels)
+name_mapping_orc = {'eva': 'EVA2', 'comp': 'COMP', 'cond': 'COND2', 'ihx': 'IHX2', 'val': 'VAL', 'pump': 'PUMP',
+                    'exp': 'EXP'}
+plot_exergy_destruction(axs[1], df_orc_mexo, name_mapping_orc, components_orc, "ORC", colors)
 
 # Create handles for the legend and add it to the last plot
 handles = [plt.Rectangle((0, 0), 1, 1, color=color, label=label) for color, label in zip(colors[:3], labels[:3])]
