@@ -64,7 +64,6 @@ def plot_exergy_destruction(ax, df, name_mapping, components, title, colors):
                         height=0.9)
                 left += total
 
-    ax.set_title(title)
     ax.axvline(0, color='black', linewidth=1)
     ax.set_xlabel('Exergy destruction [kW]')
 
