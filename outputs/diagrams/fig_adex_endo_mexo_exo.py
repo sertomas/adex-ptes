@@ -68,6 +68,9 @@ def plot_exergy_destruction(ax, df, name_mapping, components, title, colors):
     ax.axvline(0, color='black', linewidth=1)
     ax.set_xlabel('Exergy destruction [kW]')
 
+    # Adding text in the top right corner
+    ax.text(0.97, 0.95, title, transform=ax.transAxes, fontsize=18,
+            verticalalignment='top', horizontalalignment='right')
 
 # Ensure to define or load your DataFrame `df_hp_mexo` and `df_orc_mexo` here
 df_hp_mexo = pd.read_csv('../adex_hp/hp_adex_analysis.csv', index_col=[0, 1])
