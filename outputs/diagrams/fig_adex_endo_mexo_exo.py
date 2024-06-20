@@ -6,46 +6,67 @@ plt.rc('font', family='Arial', size=18)
 
 def plot_exergy_destruction(ax, df, name_mapping, components, title, colors):
     # Initialize arrays for plotting
-    totals = {'positive': [], 'negative': []}
+    totals_positive = []
+    totals_negative = []
+    ed_ex_l_positive = {}
+    ed_ex_l_negative = {}
 
     # Mapping of component names for display purposes
     components_mapped = [name_mapping.get(component, component).upper() for component in components]
 
     # Calculate totals for each component
     for component in components:
-        totals_comp = {'positive': [0, 0, 0, 0], 'negative': [0, 0, 0, 0]}
+        total_positive = [df.loc[component, "ED EN [kW]"].sum()]
+        total_negative = [0]  # Placeholder for symmetry in plotting
 
-        for i, col in enumerate(['ED UN EN [kW]', 'ED UN EX [kW]', 'ED AV EN [kW]', 'ED AV EX [kW]']):
-            try:
-                value = df.loc[(component, slice(None)), col].dropna().iloc[0]
-            except (KeyError, IndexError):
-                print(f"KeyError or IndexError: ({component}, {col}) not found in DataFrame.")
-                continue
+        mexo_values = df.loc[component, "ED MX [kW]"].sum()
+        if mexo_values > 0:
+            total_positive.append(mexo_values)
+            total_negative.append(0)  # Placeholder
+        else:
+            total_positive.append(0)  # Placeholder
+            total_negative.append(mexo_values)
 
-            if value > 0:
-                totals_comp['positive'][i] = value
-            else:
-                totals_comp['negative'][i] = value
+        for other_component in components:
+            if other_component != component:
+                key = (component, other_component)
+                value = df.loc[(component, other_component), "ED EX kl [kW]"].sum()
+                if value < 0:
+                    ed_ex_l_negative[key] = value
+                else:
+                    ed_ex_l_positive[key] = value
 
-        totals['positive'].append(totals_comp['positive'])
-        totals['negative'].append(totals_comp['negative'])
+        positive_ex_l = sum(value for (comp1, comp2), value in ed_ex_l_positive.items() if comp1 == component)
+        negative_ex_l = sum(value for (comp1, comp2), value in ed_ex_l_negative.items() if comp1 == component)
 
-    # Plotting using mapped component names
-    for i, component_totals in enumerate(zip(totals['positive'], totals['negative'])):
-        comp_mapped = components_mapped[i]
-        for totals in component_totals:
-            left = 0
-            for total in totals:
-                if total != 0:
-                    color_index = ['ED UN EN [kW]', 'ED UN EX [kW]', 'ED AV EN [kW]', 'ED AV EX [kW]'].index(
-                        ['ED UN EN [kW]', 'ED UN EX [kW]', 'ED AV EN [kW]', 'ED AV EX [kW]'][totals.index(total)])
-                    ax.barh(comp_mapped, total, left=left, color=colors[color_index], edgecolor="black", linewidth=1,
-                            height=0.9)
-                    left += total
+        total_positive.append(positive_ex_l)
+        total_negative.append(negative_ex_l)
 
+        totals_positive.append(total_positive)
+        totals_negative.append(total_negative)
+
+    components_uppercase = [component.upper() for component in components]
+
+    # Plotting
+    for i, totals in enumerate(totals_positive):
+        left = 0
+        for j, total in enumerate(totals):
+            if total > 0:
+                ax.barh(components_uppercase[i], total, left=left, color=colors[j], edgecolor="black", linewidth=1,
+                        height=0.9)
+                left += total
+
+    for i, totals in enumerate(totals_negative):
+        left = 0
+        for j, total in enumerate(totals):
+            if total < 0:
+                ax.barh(components_uppercase[i], total, left=left, color=colors[j], edgecolor="black", linewidth=1,
+                        height=0.9)
+                left += total
+
+    ax.set_title(title)
     ax.axvline(0, color='black', linewidth=1)
     ax.set_xlabel('Exergy destruction [kW]')
-    ax.text(0.97, 0.95, title, ha='right', va='top', transform=ax.transAxes, fontsize=18)
 
 
 # Ensure to define or load your DataFrame `df_hp_mexo` and `df_orc_mexo` here
@@ -81,5 +102,5 @@ axs[1].set_xlim([-25, 175])
 # plt.tight_layout()
 plt.subplots_adjust(left=0.08, right=0.99, bottom=0.21, top=0.97, wspace=0.65)
 
-plt.savefig('adex_combined_unavoid.pdf')
+plt.savefig('adex_endo_mexo_exo.pdf')
 plt.show()

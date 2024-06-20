@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 plt.rc('font', family='Arial', size=18)
 
 
-def plot_exergy_components(ax, df, name_mapping, components, title, colors, labels):
+def plot_exergy_avoid_endo(ax, df, name_mapping, components, title, colors, labels):
     """
     Plots exergy destruction for various components of a system, differentiating between unavoidable and avoidable parts.
 
@@ -80,10 +80,10 @@ labels = [r'$\dot{E}^\mathrm{UN,EN}_{\mathrm{D},k}$', r'$\dot{E}^\mathrm{UN,EX}_
 fig, axs = plt.subplots(1, 2, figsize=(14.5, 3.2))
 
 name_mapping_hp = {'eva': 'EVA1', 'comp': 'COMP', 'cond': 'COND1', 'ihx': 'IHX1', 'val': 'VAL', 'pump': 'PUMP', 'exp': 'EXP'}
-plot_exergy_components(axs[0], df_hp_mexo, name_mapping_hp, components_hp, "HP", colors, labels)
+plot_exergy_avoid_endo(axs[0], df_hp_mexo, name_mapping_hp, components_hp, "HP", colors, labels)
 
 name_mapping_orc = {'eva': 'EVA2', 'comp': 'COMP', 'cond': 'COND2', 'ihx': 'IHX2', 'val': 'VAL', 'pump': 'PUMP', 'exp': 'EXP'}
-plot_exergy_components(axs[1], df_orc_mexo, name_mapping_orc, components_orc, "ORC", colors, labels)
+plot_exergy_avoid_endo(axs[1], df_orc_mexo, name_mapping_orc, components_orc, "ORC", colors, labels)
 
 # Create handles for the legend and add it to the last plot
 handles = [plt.Rectangle((0, 0), 1, 1, color=color, label=label) for color, label in zip(colors[:4], labels[:4])]
