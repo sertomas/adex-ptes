@@ -1118,12 +1118,12 @@ if __name__ == '__main__':
         main_serial()
 
 # TEST OF ONE SINGLE SIMULATION
-'''[config_test, label_test] = set_adex_hp_config('real', 'unavoid', 'real', 'real', 'real')
+'''[config_test, label_test] = set_adex_hp_config('real', 'real', 'real', 'real', 'real')
 [df_test, target_diff, cop_test] = solve_hp(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=False)
 p12_opt = find_opt_p12(13e5, target_diff, config=config_test, label=label_test, adex=False)
-[df_opt, _, _] = solve_hp(p12_opt, print_results=True, config=config_test, label=label_test, adex=False, plot=True)
+[df_opt, _, _] = solve_hp(p12_opt, print_results=True, config=config_test, label=label_test, adex=False, plot=True)'''
 
-[config_test, label_test] = set_adex_hp_config('real', 'real', 'real', 'real', 'real')
+'''[config_test, label_test] = set_adex_hp_config('real', 'real', 'real', 'real', 'real')
 [df_test, target_diff, cop_test] = solve_hp(target_p12=13e5, print_results=True, config=config_test, label=label_test, adex=False)
 p12_opt = find_opt_p12(13e5, target_diff, config=config_test, label=label_test, adex=False)
 [df_opt, _, _] = solve_hp(p12_opt, print_results=True, config=config_test, label=label_test, adex=False, plot=True)

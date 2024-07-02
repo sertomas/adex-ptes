@@ -527,9 +527,11 @@ def solve_orc(target_p33, print_results, config, label, adex=False, plot=False):
 
     if plot:
         qt_diagram(df_streams, 'IHX', 35, 36, 32, 33,
-                   ttd_l_ihx, 'ORC', plot=plot, case=f'{label} with ttd_l_ihx={ttd_l_ihx}')
+                   ttd_l_ihx, 'ORC', plot=plot, case=f'{label} with ttd_l_ihx={ttd_l_ihx}', step_number=100,
+                   path=f'outputs/diagrams/adex_orc_qt_ihx_{label}.png')
         [min_td_eva, _] = qt_diagram(df_streams, 'EVA', 41, 42, 33, 34,
-                   ttd_u_eva, 'ORC', plot=plot, case=f'{label} with ttd_u_eva={ttd_u_eva}')
+                                     ttd_u_eva, 'ORC', plot=plot, case=f'{label} with ttd_u_eva={ttd_u_eva}',
+                                     step_number=100, path=f'outputs/diagrams/adex_orc_qt_eva_{label}.png')
 
     t_pinch_eva_sh = t49 - t38
 
@@ -1139,8 +1141,14 @@ def main_multiprocess():
 # ADVANCED EXERGY ANALYSIS
 multi = True  # true: multiprocess, false: sequential computation
 
-if __name__ == '__main__':
+'''if __name__ == '__main__':
     if multi:
         main_multiprocess()
     else:
         main_serial()
+'''
+
+[config_test, label_test] = set_adex_orc_config('real', 'real', 'real', 'real', 'real')
+[df_test, target_diff, cop_test] = solve_orc(target_p33=25e5, print_results=True, config=config_test, label=label_test, adex=False)
+p12_opt = find_opt_p33(25e5, target_diff, config=config_test, label=label_test, adex=False)
+[df_opt, _, _] = solve_orc(p12_opt, print_results=True, config=config_test, label=label_test, adex=False, plot=True)
