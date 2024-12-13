@@ -5,13 +5,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from CoolProp.CoolProp import PropsSI as PSI
 
-with open('inputs/hp_simult_base.json', 'r') as file:
+with open('inputs/hp_ihx_R1336MZZZ.json', 'r') as file:
     hp_config = json.load(file)
 t0 = hp_config['ambient']['t0']  # K
 
 
-def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_min, system, case, plot=False, path=None,
-               step_number=200):
+def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_min, system, case, show=False, path=None,
+               step_number=200, tol=1e-2):
     """
     Generate a QT diagram for a specified component in a thermal system.
 
@@ -25,9 +25,10 @@ def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_m
         delta_t_min (float): Minimum allowable temperature difference.
         system (str): Name of the thermal system for labeling the diagram.
         case (str): Identifier for the specific simulation case.
-        plot (bool, optional): Whether to display the generated diagram. Default is False.
+        show (bool, optional): Whether to display the generated diagram. Default is False.
         path (str, optional): Filepath to save the diagram. Default is None.
         step_number (int, optional): Number of steps for interpolation. Default is 200.
+        tol (float, optional): Tolerance for minimum temperature difference before error. Default is 1e-2.
 
     Returns:
         list: A list containing the minimum and maximum temperature differences in the diagram.
@@ -84,12 +85,12 @@ def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_m
 
     if path is not None:
         plt.savefig(path)
-    if plot:
+    if show:
         plt.show()
 
-    if min(difference) < delta_t_min - 1e-2:
+    if min(difference) < delta_t_min and abs(min(difference) - delta_t_min) > tol:
         print(
-            "The min. temperature difference of the " + component_name + f" of the {system} for the case {case} is " + str(
+            "Error in plot: The min. temperature difference of the " + component_name + f" of the {system} for the case {case} is " + str(
                 round(min(difference), 2)) + "K and is lower than the allowed minimum (" + str(
                 delta_t_min) + "K).")
 
