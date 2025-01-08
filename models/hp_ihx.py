@@ -218,17 +218,17 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
         #   1
         if adex and config['ihx'] == 'ideal':  # ideal ihx: ttd_u = 0
             t16_set = same_temperature_func(variables[3], target_p12, wf, variables[0], variables[10], wf)  # t16 = t12
-        elif adex and config['ihx'] == 'real':  # adex real ihx: epsilon from base case
-            t16_set = eps_real_ihx_func(epsilon['ihx'], variables[3], target_p12, variables[8], variables[11], wf,
-                                        variables[9], variables[15], variables[0], variables[10], wf)
+        # elif adex and config['ihx'] == 'real':  # adex real ihx: epsilon from base case
+            # t16_set = eps_real_ihx_func(epsilon['ihx'], variables[3], target_p12, variables[8], variables[11], wf,
+                                        # variables[9], variables[15], variables[0], variables[10], wf)
         else:  # real or unavoid ihx: given ttd_u
-            t16_set = temperature_func(t16, variables[0], variables[10], wf)
+            t16_set = ttd_temperature_func(-ttd_u_ihx, variables[3], target_p12, wf, variables[0], variables[10], wf)
         #   2
         if adex and config['cond'] == 'real':  # adex real cond: epsilon from base case
             t12_set = eps_real_he_func(epsilon['cond'], variables[1], variables[2], variables[3], target_p12, variables[4], wf,
                                        variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:  # ideal, real, unavoid cond: given ttd_l (different from cond, because temperature is known in this case)
-            t12_set = temperature_func(t12, variables[3], target_p12, wf)
+            t12_set = ttd_temperature_func(-ttd_l_cond, variables[3], target_p12, wf, variables[6], p21, fluid_tes)
         #   3
         p11_set = pr_func(pr_cond_hot, variables[2], target_p12)
         #   4
@@ -299,17 +299,17 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
         #   1
         if adex and config['ihx'] == 'ideal':  # ideal ihx: ttd_u_j = 0
             t16_set_j = same_temperature_deriv(variables[3], target_p12, wf, variables[0], variables[10], wf)  # t16_j = t12
-        elif adex and config['ihx'] == 'real':  # adex real ihx: epsilon from base case
-            t16_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[3], target_p12, variables[8], variables[11], wf,
-                                           variables[9], variables[15], variables[0], variables[10], wf)
+        # elif adex and config['ihx'] == 'real':  # adex real ihx: epsilon from base case
+            # t16_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[3], target_p12, variables[8], variables[11], wf,
+                                           # variables[9], variables[15], variables[0], variables[10], wf)
         else:  # real or unavoid ihx: given ttd_u
-            t16_set_j = temperature_deriv(t16, variables[0], variables[10], wf)
+            t16_set_j = ttd_temperature_deriv(-ttd_u_ihx, variables[3], target_p12, wf, variables[0], variables[10], wf)
         #   2
         if adex and config['cond'] == 'real':  # adex real cond: epsilon from base case
             t12_set_j = eps_real_he_deriv(epsilon['cond'], variables[1], variables[2], variables[3], target_p12, variables[4], wf,
                                           variables[6], p21, variables[7], variables[14], m21, fluid_tes)
         else:  # ideal, real, unavoid cond: given ttd_l (different from cond, because temperature is known in this case)
-            t12_set_j = temperature_deriv(t12, variables[3], target_p12, wf)
+            t12_set_j = ttd_temperature_deriv(-ttd_l_cond, variables[3], target_p12, wf, variables[6], p21, fluid_tes)
         #   3
         p11_set_j = pr_deriv(pr_cond_hot, variables[2], target_p12)
         #   4
@@ -377,17 +377,18 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
             jacobian[1, 3] = t16_set_j['h_copy']  # derivative of t16_set with respect to h16
             jacobian[1, 0] = t16_set_j['h_paste']  # derivative of t16_set with respect to p16
             jacobian[1, 10] = t16_set_j['p_paste']  # derivative of t16_set with respect to h16
-        elif adex and config['ihx'] == 'real':
-            jacobian[1, 3] = t16_set_j['h_hot_in']  # derivative of t16_set with respect to h16
-            jacobian[1, 8] = t16_set_j['h_hot_out']  # derivative of t16_set with respect to p16
-            jacobian[1, 11] = t16_set_j['p_hot_out']  # derivative of t16_set with respect to h16
-            jacobian[1, 9] = t16_set_j['h_cold_in']  # derivative of t16_set with respect to p16
-            jacobian[1, 15] = t16_set_j['p_cold_in']  # derivative of t16_set with respect to h16
-            jacobian[1, 0] = t16_set_j['h_cold_out']  # derivative of t16_set with respect to p16
-            jacobian[1, 10] = t16_set_j['p_cold_out']  # derivative of t16_set with respect to h16
+        #elif adex and config['ihx'] == 'real':
+            #jacobian[1, 3] = t16_set_j['h_hot_in']  # derivative of t16_set with respect to h16
+            #jacobian[1, 8] = t16_set_j['h_hot_out']  # derivative of t16_set with respect to p16
+            #jacobian[1, 11] = t16_set_j['p_hot_out']  # derivative of t16_set with respect to h16
+            #jacobian[1, 9] = t16_set_j['h_cold_in']  # derivative of t16_set with respect to p16
+            #jacobian[1, 15] = t16_set_j['p_cold_in']  # derivative of t16_set with respect to h16
+            #jacobian[1, 0] = t16_set_j['h_cold_out']  # derivative of t16_set with respect to p16
+            #jacobian[1, 10] = t16_set_j['p_cold_out']  # derivative of t16_set with respect to h16
         else:
-            jacobian[1, 0] = t16_set_j['h']  # derivative of t16_set with respect to h16
-            jacobian[1, 10] = t16_set_j['p']  # derivative of t16_set with respect to p16
+            jacobian[1, 3] = t16_set_j['h_copy']  # derivative of t16_set with respect to h16
+            jacobian[1, 0] = t16_set_j['h_paste']  # derivative of t16_set with respect to h16
+            jacobian[1, 10] = t16_set_j['p_paste']  # derivative of t16_set with respect to p16
         if adex and config['cond'] == 'real':
             jacobian[2, 1] = t12_set_j['h_hot_in']  # derivative of m11_calc_cond with respect to h11
             jacobian[2, 2] = t12_set_j['p_hot_in']  # derivative of m11_calc_cond with respect to h12
@@ -397,7 +398,8 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
             jacobian[2, 7] = t12_set_j['h_cold_out']  # derivative of m11_calc_cond with respect to h22
             jacobian[2, 14] = t12_set_j['p_cold_out']  # derivative of m11_calc_cond with respect to h22
         else:
-            jacobian[2, 3] = t12_set_j['h']  # derivative of t12_set with respect to h12
+            jacobian[2, 3] = t12_set_j['h_copy']  # derivative of t12_set with respect to h12 (hot stream)
+            jacobian[2, 6] = t12_set_j['h_paste']  # derivative of t12_set with respect to h21 (cold stream)
         jacobian[3, 2] = p11_set_j['p_1']  # derivative of p11_set with respect to p11
         jacobian[4, 5] = power_calc_comp_j['P']  # derivative of power_calc_comp with respect to power
         jacobian[4, 4] = power_calc_comp_j['m']  # derivative of power_calc_comp with respect to m11
@@ -871,7 +873,7 @@ def find_opt_p12(p12_opt_start, min_t_diff_cond_start, config, label, config_pat
     min_t_diff_cond = target_min_td_cond
     p12_opt = p12_opt_start
     tolerance = 1e-3  # relative to min temperature difference
-    learning_rate = 1e4  # relative to p12
+    learning_rate = 2e4  # relative to p12
     diff = min_t_diff_cond_start - target_min_td_cond
     step = 0
 
@@ -1147,7 +1149,7 @@ def multiprocess_hp(config_paths, high_pressure_level, print_results=False):
             config_kwargs = {comp: 'real' for comp in components}  # Start with all components as 'real'
             config_kwargs[component] = 'unavoid'  # Set the current component to 'unavoid'
             config_i, label_i = config_hp(**config_kwargs)
-            tasks.append((high_pressure_level, config_i, label_i, df_ed_i, config_paths, True, True, print_results, True, output_buffer))
+            tasks.append((high_pressure_level, config_i, label_i, df_ed_i, config_paths, False, True, print_results, True, output_buffer))
 
         # Map tasks to the pool
         results = pool.starmap(run_adex_hp, tasks)

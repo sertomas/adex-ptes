@@ -204,10 +204,10 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
     iter_step = 0
 
     while np.linalg.norm(residual) > 1e-4:
-        # TODO [h31, p31, h32, h36, p36, p32, p34, h34, p35, h35, h33, h41, h42, p42, m31
-        # TODO   0    1    2    3    4    5    6    7    8    9    10   11   12   13   14
-        #       h38, h39, h48, h49, p38, p39, p48, p49])]
-        #        15   16   17   18   19   20   21   22
+        #   [h31, p31, h32, h36, p36, p32, p34, h34, p35, h35, h33, h41, h42, p42, m31
+        #     0    1    2    3    4    5    6    7    8    9    10   11   12   13   14
+        #    h38, h39, h48, h49, p38, p39, p48, p49])]
+        #     15   16   17   18   19   20   21   22
         # 0
         t31_set = temperature_func(t31, variables[0], variables[1], wf)
         # 1
@@ -216,24 +216,18 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
         if adex and config['pump'] == 'ideal':  # ideal pump: epsilon = 1
             t32_calc_pump = eps_compressor_func(1, variables[0], variables[1], variables[2], variables[5], wf)
         elif adex and config['pump'] == 'real':  # adex real pump: epsilon from base case
-            t32_calc_pump = eps_compressor_func(epsilon['pump'], variables[0], variables[1], variables[2],
-                                                variables[5], wf)
+            t32_calc_pump = eps_compressor_func(epsilon['pump'], variables[0], variables[1], variables[2], variables[5], wf)
         else:  # real or unavoid pump: given eta_s
-            t32_calc_pump = eta_s_compressor_func(eta_s_pump, variables[0], variables[1], variables[2],
-                                                  variables[5], wf)
+            t32_calc_pump = eta_s_compressor_func(eta_s_pump, variables[0], variables[1], variables[2], variables[5], wf)
         # 3
         if adex and config['ihx'] == 'ideal':
-            if config['cond'] == 'real':
-                t36_set = ttd_temperature_func(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
-            elif config['cond'] == 'ideal':
-                t36_set = same_temperature_func(variables[2], variables[5], wf, variables[3], variables[4], wf)
+            t36_set = ttd_temperature_func(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # elif adex and config['ihx']:  # real ihx for adv. exergy analysis
         #     t36_set = eps_real_ihx_func(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
         #                                 variables[2], variables[5], variables[10], target_p33, wf)
         # PROBLEM: otherwise is temp. diff. in IHX negative
         else:  # real ihx for base design
-            t36_set = ttd_temperature_func(ttd_l_ihx, variables[2], variables[5], wf, variables[3], variables[4],
-                                           wf)
+            t36_set = ttd_temperature_func(ttd_l_ihx, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # 4
         p36_set = pr_func(pr_cond_hot, variables[4], variables[1])
         # 5
@@ -248,11 +242,9 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
         if adex and config['exp'] == 'ideal':
             t35_calc_exp = eps_expander_func(1, variables[7], variables[6], variables[9], variables[8], wf)
         elif adex and config['exp'] == 'real':
-            t35_calc_exp = eps_expander_func(epsilon['exp'], variables[7], variables[6], variables[9], variables[8],
-                                             wf)
+            t35_calc_exp = eps_expander_func(epsilon['exp'], variables[7], variables[6], variables[9], variables[8], wf)
         else:
-            t35_calc_exp = eta_s_expander_func(eta_s_exp, variables[7], variables[6], variables[9], variables[8],
-                                               wf)
+            t35_calc_exp = eta_s_expander_func(eta_s_exp, variables[7], variables[6], variables[9], variables[8], wf)
         # 10
         if adex and config['ihx'] == 'ideal':
             # if config['eva'] and not config['pump'] and not config['exp'] and not config['cond']:  # only real eva
@@ -314,17 +306,13 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
             t32_calc_pump_j = eta_s_compressor_deriv(eta_s_pump, variables[0], variables[1], variables[2],
                                                      variables[5], wf)
         # 3
-        if adex and config['ihx'] == 'ideal':
-            if config['cond'] == 'real':
-                t36_set_j = ttd_temperature_deriv(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
-            elif config['cond'] == 'ideal':
-                t36_set_j = same_temperature_deriv(variables[2], variables[5], wf, variables[3], variables[4], wf)
+        if adex and config['ihx'] == 'ideal' and config['cond'] == 'real':
+            t36_set_j = ttd_temperature_deriv(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # elif adex and config['ihx']:  # real ihx for adv. exergy analysis
         #     t36_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
         #                                    variables[2], variables[5], variables[10], target_p33, wf)
         else:  # real ihx for base design
-            t36_set_j = ttd_temperature_deriv(ttd_l_ihx, variables[2], variables[5], wf, variables[3], variables[4],
-                                              wf)
+            t36_set_j = ttd_temperature_deriv(ttd_l_ihx, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # 4
         p36_set_j = pr_deriv(pr_cond_hot, variables[4], variables[1])
         # 5
@@ -339,11 +327,9 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
         if adex and config['exp'] == 'ideal':
             t35_calc_exp_j = eps_expander_deriv(1, variables[7], variables[6], variables[9], variables[8], wf)
         elif adex and config['exp'] == 'real':
-            t35_calc_exp_j = eps_expander_deriv(epsilon['exp'], variables[7], variables[6], variables[9],
-                                                variables[8], wf)
+            t35_calc_exp_j = eps_expander_deriv(epsilon['exp'], variables[7], variables[6], variables[9], variables[8], wf)
         else:
-            t35_calc_exp_j = eta_s_expander_deriv(eta_s_exp, variables[7], variables[6], variables[9], variables[8],
-                                                  wf)
+            t35_calc_exp_j = eta_s_expander_deriv(eta_s_exp, variables[7], variables[6], variables[9], variables[8], wf)
         # 10
         if adex and config['ihx'] == 'ideal':
             # if config['eva'] and not config['pump'] and not config['exp'] and not config['cond']:  # only real eva
@@ -362,10 +348,8 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
         p42_set_j = pr_deriv(pr_eva_hot, p41, variables[13])
         # 14
         if adex and config['eva'] == 'ideal':
-            m31_calc_eva_j = ideal_he_entropy_deriv(variables[11], p41, variables[12], variables[13], m41,
-                                                    fluid_tes,
-                                                    variables[10], target_p33, variables[7], variables[6],
-                                                    variables[14], wf)
+            m31_calc_eva_j = ideal_he_entropy_deriv(variables[11], p41, variables[12], variables[13], m41, fluid_tes,
+                                                    variables[10], target_p33, variables[7], variables[6], variables[14], wf)
         else:  # real eva for base design or for adv. exergy analysis
             m31_calc_eva_j = he_deriv(m41, variables[11], variables[12], variables[14], variables[10], variables[7])
         # 15
@@ -385,10 +369,10 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
         # 22
         p49_set_j = pr_deriv(pr_eva_part_hot, variables[21], variables[22])
 
-        # TODO [h31, p31, h32, h36, p36, p32, p34, h34, p35, h35, h33, h41, h42, p42, m31
-        # TODO   0    1    2    3    4    5    6    7    8    9    10   11   12   13   14
-        #       h38, h39, h48, h49, p38, p39, p48, p49])]
-        #        15   16   17   18   19   20   21   22
+        #   [h31, p31, h32, h36, p36, p32, p34, h34, p35, h35, h33, h41, h42, p42, m31
+        #     0    1    2    3    4    5    6    7    8    9    10   11   12   13   14
+        #    h38, h39, h48, h49, p38, p39, p48, p49])]
+        #     15   16   17   18   19   20   21   22
         jacobian[0, 0] = t31_set_j['h']  # derivative of t31_set with respect to h31
         jacobian[0, 1] = t31_set_j['p']  # derivative of t31_set with respect to p31
         jacobian[1, 0] = p31_calc_cond_j['h']  # derivative of p31_calc_cond with respect to h31
@@ -397,24 +381,10 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
         jacobian[2, 1] = t32_calc_pump_j['p_1']  # derivative of t32_calc_pump with respect to p31
         jacobian[2, 2] = t32_calc_pump_j['h_2']  # derivative of t32_calc_pump with respect to h32
         jacobian[2, 5] = t32_calc_pump_j['p_2']  # derivative of t32_calc_pump with respect to p32
-        if adex and config['ihx'] == 'ideal':
-            jacobian[3, 2] = t36_set_j['h_copy']  # derivative of t36_set_j with respect to h35
-            jacobian[3, 5] = t36_set_j['p_copy']  # derivative of t36_set_j with respect to p35
-            jacobian[3, 3] = t36_set_j['h_paste']  # derivative of t36_set_j with respect to h36
-            jacobian[3, 4] = t36_set_j['p_paste']  # derivative of t36_set_j with respect to p36
-        # elif adex and config['ihx']:
-        #     jacobian[3, 9] = t36_set_j['h_hot_in']  # derivative of t36_set_j with respect to h35
-        #     jacobian[3, 8] = t36_set_j['p_hot_in']  # derivative of t36_set_j with respect to p35
-        #     jacobian[3, 3] = t36_set_j['h_hot_out']  # derivative of t36_set_j with respect to h36
-        #     jacobian[3, 4] = t36_set_j['p_hot_out']  # derivative of t36_set_j with respect to p36
-        #     jacobian[3, 2] = t36_set_j['h_cold_in']  # derivative of t36_set_j with respect to h32
-        #     jacobian[3, 5] = t36_set_j['p_cold_in']  # derivative of t36_set_j with respect to p32
-        #     jacobian[3, 10] = t36_set_j['h_cold_out']  # derivative of t36_set_j with respect to h33
-        else:
-            jacobian[3, 2] = t36_set_j['h_copy']  # derivative of t36_set_j with respect to h35
-            jacobian[3, 5] = t36_set_j['p_copy']  # derivative of t36_set_j with respect to p35
-            jacobian[3, 3] = t36_set_j['h_paste']  # derivative of t36_set_j with respect to h36
-            jacobian[3, 4] = t36_set_j['p_paste']  # derivative of t36_set_j with respect to p36
+        jacobian[3, 2] = t36_set_j['h_copy']  # derivative of t36_set_j with respect to h35
+        jacobian[3, 5] = t36_set_j['p_copy']  # derivative of t36_set_j with respect to p35
+        jacobian[3, 3] = t36_set_j['h_paste']  # derivative of t36_set_j with respect to h36
+        jacobian[3, 4] = t36_set_j['p_paste']  # derivative of t36_set_j with respect to p36
         jacobian[4, 4] = p36_set_j['p_1']  # derivative of p36_set with respect to p36
         jacobian[4, 1] = p36_set_j['p_2']  # derivative of p36_set with respect to p31
         jacobian[5, 5] = p32_set_j['p_1']  # derivative of p32_set with respect to p33
@@ -495,10 +465,10 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
         cond_number = np.linalg.cond(jacobian)
         # print('Condition number:', cond_number, '- residual:', np.linalg.norm(residual), '- step:', iter_step)
         # print(np.linalg.norm(residual))
-    # TODO [h31, p31, h32, h36, p36, p32, p34, h34, p35, h35, h33, h41, h42, p42, m31
-    # TODO   0    1    2    3    4    5    6    7    8    9    10   11   12   13   14
-    #       h38, h39, h48, h49, p38, p39, p48, p49])]
-    #        15   16   17   18   19   20   21   22
+    #   [h31, p31, h32, h36, p36, p32, p34, h34, p35, h35, h33, h41, h42, p42, m31
+    #     0    1    2    3    4    5    6    7    8    9    10   11   12   13   14
+    #    h38, h39, h48, h49, p38, p39, p48, p49])]
+    #     15   16   17   18   19   20   21   22
     p31 = variables[1]
     p32 = variables[5]
     p33 = target_p33
@@ -892,7 +862,7 @@ def find_opt_p33(p33_opt_start, min_t_diff_eva_start, config, label, config_path
     min_t_diff_eva = target_min_td_eva
     p33_opt = p33_opt_start
     tolerance = 1e-3  # relative to min temperature difference
-    learning_rate = 5e4  # relative to p33
+    learning_rate = 3e4  # relative to p33
     diff = min_t_diff_eva_start - target_min_td_eva
     step = 0
 
@@ -902,7 +872,7 @@ def find_opt_p33(p33_opt_start, min_t_diff_eva_start, config, label, config_path
         # adjustment is the smaller, the smaller the difference target_min_td_eva - min_td_eva
         p33_opt += adjustment
 
-        [df, min_t_diff_eva, eta, _] = simulate_orc(p33_opt, label=label, config=config, config_paths=config_paths,
+        [df, min_t_diff_eva, efficiency, _] = simulate_orc(p33_opt, label=label, config=config, config_paths=config_paths,
                                                     adex=adex, print_results=False, qt_diagrams=False)
 
         diff = abs(min_t_diff_eva - target_min_td_eva)
@@ -910,7 +880,7 @@ def find_opt_p33(p33_opt_start, min_t_diff_eva_start, config, label, config_path
         step += 1
         if print_results:
             buffer.write(
-                f'Optimization in progress for {label}: step = {step}, diff = {round(diff, 6)}, p33 = {round(p33_opt * 1e-5, 4)} bar, eta = {round(eta, 4)}.\n')
+                f'Optimization in progress for {label}: step = {step}, diff = {round(diff, 6)}, p33 = {round(p33_opt * 1e-5, 4)} bar, eta = {round(efficiency, 4)}.\n')
 
     if print_results:
         buffer.write(f'Optimization completed successfully in {step} steps!\n')
@@ -967,9 +937,9 @@ def perform_adex_orc(p33_start, config, label, df_ed, config_paths, adex=False, 
                            adex=adex, output_buffer=output_buffer)
 
     # Run simulation with optimal p33 and minimum pinch point in evaporator
-    [df_opt, _, _, allowed_min_temps] = simulate_orc(p33_opt, config=config, label=f'optimal_{label}',
-                                                     config_paths=config_paths, adex=adex,
-                                                     print_results=print_results, qt_diagrams=True)
+    [df_opt, _, efficiency, allowed_min_temps] = simulate_orc(p33_opt, config=config, label=f'optimal_{label}',
+                                                              config_paths=config_paths, adex=adex,
+                                                              print_results=print_results, qt_diagrams=True)
 
     # Check for minimum temperature differences after optimal pressure simulation
     try:
@@ -1003,7 +973,7 @@ def perform_adex_orc(p33_start, config, label, df_ed, config_paths, adex=False, 
         output_path = os.path.join(config_paths['outputs'], 'streams', f'orc_streams_{label}.csv')
         round(df_opt, 5).to_csv(output_path)
 
-    return df_ed
+    return df_ed, efficiency
 
 
 def run_adex_orc(high_pressure_level, config, label, df_ed, config_paths, adex, save, print_results, calc_epsilon, output_buffer=None):
@@ -1038,8 +1008,8 @@ def run_adex_orc(high_pressure_level, config, label, df_ed, config_paths, adex, 
     pandas.DataFrame
         Updated DataFrame with exergy destruction results.
     """
-    df_ed = perform_adex_orc(high_pressure_level, config, label, df_ed, config_paths,
-                             adex, save, print_results, calc_epsilon, output_buffer)
+    [df_ed, _] = perform_adex_orc(high_pressure_level, config, label, df_ed, config_paths,
+                                  adex, save, print_results, calc_epsilon, output_buffer)
     return df_ed
 
 
@@ -1077,14 +1047,14 @@ def serial_orc(config_paths, high_pressure_level, print_results=False):
 
     # BASE CASE
     [config_base, label_base] = config_orc()
-    perform_adex_orc(high_pressure_level, config_base, label_base, df_ed, config_paths,
-                    adex=False, save=True, print_results=print_results, calc_epsilon=True)
+    [_, efficiency_base] = perform_adex_orc(high_pressure_level, config_base, label_base, df_ed, config_paths,
+                                            adex=False, save=True, print_results=print_results, calc_epsilon=True)
 
     # IDEAL CASE
     [config_ideal, label_ideal] = config_orc(pump='ideal', eva='ideal', ihx='ideal',
                                            exp='ideal', cond='ideal')
-    perform_adex_orc(high_pressure_level, config_ideal, label_ideal, df_ed, config_paths,
-                    adex=False, save=True, print_results=print_results, calc_epsilon=True)
+    [_, efficiency_ideal] = perform_adex_orc(high_pressure_level, config_ideal, label_ideal, df_ed, config_paths,
+                                             adex=False, save=True, print_results=print_results, calc_epsilon=True)
 
     # ADVANCED EXERGY ANALYSIS -- single components
     components = ['pump', 'eva', 'ihx', 'exp', 'cond']
@@ -1155,9 +1125,9 @@ def multiprocess_orc(config_paths, high_pressure_level, print_results=False):
 
     # BASE CASE
     [config_base, label_base] = config_orc()
-    perform_adex_orc(high_pressure_level, config_base, label_base, df_ed_base, config_paths,
-                     adex=False, save=True, print_results=print_results, calc_epsilon=True,
-                     output_buffer=output_buffer)
+    [_, efficiency_base] = perform_adex_orc(high_pressure_level, config_base, label_base, df_ed_base, config_paths,
+                                            adex=False, save=True, print_results=print_results, calc_epsilon=True,
+                                            output_buffer=output_buffer)
 
     tasks = []
 
@@ -1195,7 +1165,7 @@ def multiprocess_orc(config_paths, high_pressure_level, print_results=False):
             config_kwargs[component] = 'unavoid'  # Set the current component to 'unavoid'
             config_i, label_i = config_orc(**config_kwargs)
             tasks.append((high_pressure_level, config_i, label_i, df_ed_i, config_paths,
-                          True, True, print_results, True, output_buffer))
+                          False, True, print_results, True, output_buffer))
 
         # Map tasks to the pool
         results = pool.starmap(run_adex_orc, tasks)
@@ -1325,6 +1295,7 @@ def multiprocess_orc(config_paths, high_pressure_level, print_results=False):
     df_exergy = pd.read_csv(os.path.join(config_paths['outputs'], 'comps/orc_comps_all_real.csv'), index_col=0)
     columns_to_print = ['EF [kW]', 'EP [kW]', 'ED [kW]', 'epsilon', 'P [kW]', 'Q [kW]']
     print(tabulate_func(df_exergy[columns_to_print], headers='keys', tablefmt='psql', floatfmt=".2f"))
+    print("The energetic efficiency of the ORC in the optimized base case is: "+str(round(efficiency_base*100, 2))+" %")
 
     print("\nIdeal Case Results:")
     df_ideal = pd.read_csv(os.path.join(config_paths['outputs'], 'streams/orc_streams_all_ideal.csv'), index_col=0)

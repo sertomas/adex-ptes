@@ -5,7 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from CoolProp.CoolProp import PropsSI as PSI
 
-with open('inputs/hp_ihx_R1336MZZZ.json', 'r') as file:
+with open('inputs/hp_ihx_R1336MZZZ_140_70.json', 'r') as file:
     hp_config = json.load(file)
 t0 = hp_config['ambient']['t0']  # K
 
