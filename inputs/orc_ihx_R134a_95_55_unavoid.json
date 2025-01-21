@@ -18,8 +18,8 @@
         "ttd_u_eva": 2
     },
     "technical_parameters": {
-        "eta_s_pump": 0.92,
-        "eta_s_exp": 0.93
+        "eta_s_pump": 0.95,
+        "eta_s_exp": 0.95
     },
     "starting_values": {
         "enthalpies": {

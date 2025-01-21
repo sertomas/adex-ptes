@@ -9,12 +9,12 @@ pd.set_option('display.width', None)
 
 # Define scenarios
 scenarios = [
-    "R152a_130_70",  # works (08.01.)   -   higher (140) does NOT work
-    "R152a_120_70",  # works (08.01.)
+    #"R152a_130_70",  # works (08.01.)   -   higher (140) does NOT work
+    #"R152a_120_70",  # works (08.01.)
     "R152a_110_70",  # works (08.01.)
-    "R134a_95_70",   # works (08.01.)   -   higher (75 and 80) does NOT work
-    "R134a_95_65",   # works (19.12.)
-    "R134a_95_60",   # works (08.01.)   -   lower (55) does NOT work
+    #"R134a_95_70",   # works (08.01.)   -   higher (75 and 80) does NOT work
+    #"R134a_95_65",   # works (19.12.)
+    #"R134a_95_60",   # works (08.01.)   -   lower (55) does NOT work
 ]
 
 

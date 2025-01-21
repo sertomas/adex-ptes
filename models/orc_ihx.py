@@ -11,13 +11,14 @@ from tabulate import tabulate as tabulate_func
 from CoolProp.CoolProp import PropsSI as PSI
 
 from functions import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor_deriv, turbo_func, turbo_deriv, he_func,
-                       he_deriv, ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
+                       he_deriv, ihx_energy_bal, ihx_energy_bal_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
                        x_saturation_func, x_saturation_deriv, qt_diagram, eps_compressor_func, eps_compressor_deriv,
-                       eps_real_he_func, eps_real_he_deriv, eps_real_ihx_func, eps_real_ihx_deriv, simple_he_func,
+                       eps_real_he_func, eps_real_he_deriv, eps_real_ihx_energy_bal, eps_real_ihx_energy_bal_deriv, simple_he_func,
                        simple_he_deriv, ideal_ihx_entropy_func, ideal_ihx_entropy_deriv, ideal_he_entropy_func,
                        ideal_he_entropy_deriv, ideal_valve_entropy_func, ideal_valve_entropy_deriv, he_with_p_func,
                        he_with_p_deriv, same_temperature_func, same_temperature_deriv, ttd_temperature_func,
-                       ttd_temperature_deriv, eta_s_expander_func, eta_s_expander_deriv, eps_expander_func, eps_expander_deriv,)
+                       ttd_temperature_deriv, eta_s_expander_func, eta_s_expander_deriv, eps_expander_func,
+                       eps_expander_deriv, store_eta_in_csv)
 
 
 def check_minimum_temperature_differences_orc(df_streams, min_temps, case):
@@ -223,7 +224,7 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
         if adex and config['ihx'] == 'ideal':
             t36_set = ttd_temperature_func(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # elif adex and config['ihx']:  # real ihx for adv. exergy analysis
-        #     t36_set = eps_real_ihx_func(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
+        #     t36_set = eps_real_ihx_energy_bal(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
         #                                 variables[2], variables[5], variables[10], target_p33, wf)
         # PROBLEM: otherwise is temp. diff. in IHX negative
         else:  # real ihx for base design
@@ -255,7 +256,7 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
             t33_calc = ideal_ihx_entropy_func(variables[9], variables[8], variables[3], variables[4], wf,
                                               variables[2], variables[5], variables[10], target_p33, wf)
         else:  # real ihx for base design or for adv. exergy analysis
-            t33_calc = ihx_func(variables[9], variables[3], variables[2], variables[10])
+            t33_calc = ihx_energy_bal(variables[9], variables[3], variables[2], variables[10])
             # 11
         t41_set = temperature_func(t41, variables[11], p41, fluid_tes)
         # 12
@@ -307,9 +308,9 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
                                                      variables[5], wf)
         # 3
         if adex and config['ihx'] == 'ideal' and config['cond'] == 'real':
-            t36_set_j = ttd_temperature_deriv(1, variables[2], variables[5], wf, variables[3], variables[4], wf)
+            t36_set_j = ttd_temperature_deriv(0, variables[2], variables[5], wf, variables[3], variables[4], wf)
         # elif adex and config['ihx']:  # real ihx for adv. exergy analysis
-        #     t36_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
+        #     t36_set_j = eps_real_ihx_energy_bal_deriv(epsilon['ihx'], variables[9], variables[8], variables[3], variables[4], wf,
         #                                    variables[2], variables[5], variables[10], target_p33, wf)
         else:  # real ihx for base design
             t36_set_j = ttd_temperature_deriv(ttd_l_ihx, variables[2], variables[5], wf, variables[3], variables[4], wf)
@@ -339,7 +340,7 @@ def simulate_orc(target_p33, config, label, config_paths, adex=False, print_resu
             t33_calc_j = ideal_ihx_entropy_deriv(variables[9], variables[8], variables[3], variables[4], wf,
                                                  variables[2], variables[5], variables[10], target_p33, wf)
         else:  # real ihx for base design or for adv. exergy analysis
-            t33_calc_j = ihx_deriv(variables[9], variables[3], variables[2], variables[10])
+            t33_calc_j = ihx_energy_bal_deriv(variables[9], variables[3], variables[2], variables[10])
             # 11
         t41_set_j = temperature_deriv(t41, variables[11], p41, fluid_tes)
         # 12
@@ -940,6 +941,9 @@ def perform_adex_orc(p33_start, config, label, df_ed, config_paths, adex=False, 
     [df_opt, _, efficiency, allowed_min_temps] = simulate_orc(p33_opt, config=config, label=f'optimal_{label}',
                                                               config_paths=config_paths, adex=adex,
                                                               print_results=print_results, qt_diagrams=True)
+
+    # Store the optimized efficiency
+    store_eta_in_csv(efficiency, f"optimal_{label}", config_paths)
 
     # Check for minimum temperature differences after optimal pressure simulation
     try:

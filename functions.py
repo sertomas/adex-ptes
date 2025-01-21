@@ -1,4 +1,5 @@
 import json
+import os
 import pandas as pd
 import numpy as np
 import matplotlib as mpl
@@ -95,6 +96,48 @@ def qt_diagram(df, component_name, hot_in, hot_out, cold_in, cold_out, delta_t_m
                 delta_t_min) + "K).")
 
     return [min(difference), max(difference)]
+
+
+def store_cop_in_csv(cop, label, config_paths):
+    """
+    Appends the COP result (with its label) to a CSV file in config_paths['outputs'].
+    """
+    csv_path = os.path.join(config_paths['outputs'], 'hp_cop.csv')
+
+    # Load existing data or create an empty DataFrame
+    if os.path.exists(csv_path):
+        df_cop = pd.read_csv(csv_path)
+    else:
+        df_cop = pd.DataFrame(columns=['label', 'cop'])
+
+    # Create a new row
+    new_row = pd.DataFrame({'label': [label], 'cop': [cop]})
+
+    # Concatenate
+    df_cop = pd.concat([df_cop, new_row], ignore_index=True)
+
+    # Save back to CSV
+    df_cop.to_csv(csv_path, index=False)
+
+
+def store_eta_in_csv(eta, label, config_paths):
+    """
+    Appends the efficiency (eta) for a given label into a CSV file located in config_paths['outputs'].
+    """
+    csv_path = os.path.join(config_paths['outputs'], 'orc_eta.csv')
+
+    # Load existing data or create an empty DataFrame
+    if os.path.exists(csv_path):
+        df_eta = pd.read_csv(csv_path)
+    else:
+        df_eta = pd.DataFrame(columns=['label', 'eta'])
+
+    # Create a new row and concatenate
+    new_row = pd.DataFrame({'label': [label], 'eta': [eta]})
+    df_eta = pd.concat([df_eta, new_row], ignore_index=True)
+
+    # Save back to CSV
+    df_eta.to_csv(csv_path, index=False)
 
 
 def pr_func(pr, p_1, p_2):
@@ -195,11 +238,11 @@ def he_with_p_deriv(power, m_hot, h_1, h_2, m_cold, h_3, h_4):
     }
 
 
-def ihx_func(h_1, h_2, h_3, h_4):
+def ihx_energy_bal(h_1, h_2, h_3, h_4):
     return (h_1 - h_2) + (h_3 - h_4)
 
 
-def ihx_deriv(h_1, h_2, h_3, h_4):
+def ihx_energy_bal_deriv(h_1, h_2, h_3, h_4):
     return {
         "h_1": 1,
         "h_2": -1,
@@ -420,7 +463,7 @@ def eps_ideal_he_deriv(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, f
     }
 
 
-def eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot,
+def eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot,
                       h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold):
     # epsilon = (E_cold_out - E_cold_in) / (E_hot_in - E_hot_out)
     #         = (e_cold_out - e_cold_in) / (e_hot_in - e_hot_out)
@@ -434,30 +477,30 @@ def eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_h
             - (h_cold_out - h_cold_in - t0 * (s_cold_out - s_cold_in)))
 
 
-def eps_real_ihx_deriv(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot,
+def eps_real_ihx_energy_bal_deriv(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot,
                        h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold):
     d = 1e-2
     return {
-        "h_hot_in": (eps_real_ihx_func(epsilon, h_hot_in + d, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
-                     - eps_real_ihx_func(epsilon, h_hot_in - d, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
-        "h_hot_out": (eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out + d, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
-                      - eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out - d, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
-        "p_hot_in": (eps_real_ihx_func(epsilon, h_hot_in, p_hot_in + d, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
-                     - eps_real_ihx_func(epsilon, h_hot_in, p_hot_in - d, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
-        "p_hot_out": (eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out + d, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
-                      - eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out - d, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
-        "h_cold_in": (eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in + d, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
-                      - eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in - d, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
-        "h_cold_out": (eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out + d, p_cold_out, fluid_cold)
-                       - eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out - d, p_cold_out, fluid_cold)) / (2 * d),
-        "p_cold_in": (eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in + d, h_cold_out, p_cold_out, fluid_cold)
-                      - eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in - d, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
-        "p_cold_out": (eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out + d, fluid_cold)
-                       - eps_real_ihx_func(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out - d, fluid_cold)) / (2 * d),
+        "h_hot_in": (eps_real_ihx_energy_bal(epsilon, h_hot_in + d, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                     - eps_real_ihx_energy_bal(epsilon, h_hot_in - d, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "h_hot_out": (eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out + d, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                      - eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out - d, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "p_hot_in": (eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in + d, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                     - eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in - d, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "p_hot_out": (eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out + d, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                      - eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out - d, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "h_cold_in": (eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in + d, p_cold_in, h_cold_out, p_cold_out, fluid_cold)
+                      - eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in - d, p_cold_in, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "h_cold_out": (eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out + d, p_cold_out, fluid_cold)
+                       - eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out - d, p_cold_out, fluid_cold)) / (2 * d),
+        "p_cold_in": (eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in + d, h_cold_out, p_cold_out, fluid_cold)
+                      - eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in - d, h_cold_out, p_cold_out, fluid_cold)) / (2 * d),
+        "p_cold_out": (eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out + d, fluid_cold)
+                       - eps_real_ihx_energy_bal(epsilon, h_hot_in, p_hot_in, h_hot_out, p_hot_out, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out - d, fluid_cold)) / (2 * d),
     }
 
 
-def eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
+def eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
                        h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold):
     # 1 = ((E_cold_out - E_cold_in) + power) / (E_hot_in - E_hot_out)
     #   = (m_cold * (h_cold_out - h_cold_in - T0 * (s_cold_out - s_cold_in)) + power) / 
@@ -470,33 +513,33 @@ def eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, f
             - (m_cold * (h_cold_out - h_cold_in - t0 * (s_cold_out - s_cold_in)) + power))
 
 
-def eps_ideal_ihx_deriv(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
+def eps_ideal_ihx_energy_bal_deriv(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot,
                         h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold):
     d_high = 1e-2
     d_low = 1e-3
     return {
-        "power": (eps_ideal_ihx_func(power + d_high, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
-                  - eps_ideal_ihx_func(power - d_high, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)),
-        "h_hot_in": (eps_ideal_ihx_func(power, h_hot_in + d_high, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
-                     - eps_ideal_ihx_func(power, h_hot_in - d_high, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
-        "h_hot_out": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out + d_high, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
-                      - eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out - d_high, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
-        "p_hot_in": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in + d_high, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
-                     - eps_ideal_ihx_func(power, h_hot_in, p_hot_in - d_high, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
-        "p_hot_out": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out + d_high, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
-                      - eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out - d_high, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
-        "h_cold_in": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in + d_high, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
-                      - eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in - d_high, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
-        "h_cold_out": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out + d_high, p_cold_out, m_cold, fluid_cold)
-                       - eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out - d_high, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
-        "p_cold_in": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in + d_high, h_cold_out, p_cold_out, m_cold, fluid_cold)
-                      - eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in - d_high, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
-        "p_cold_out": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out + d_high, m_cold, fluid_cold)
-                       - eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out - d_high, m_cold, fluid_cold)) / (2 * d_high),
-        "m_hot": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot + d_low, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
-                  - eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot - d_low, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_low),
-        "m_cold": (eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold + d_low, fluid_cold)
-                   - eps_ideal_ihx_func(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold - d_low, fluid_cold)) / (2 * d_low)
+        "power": (eps_ideal_ihx_energy_bal(power + d_high, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                  - eps_ideal_ihx_energy_bal(power - d_high, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)),
+        "h_hot_in": (eps_ideal_ihx_energy_bal(power, h_hot_in + d_high, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                     - eps_ideal_ihx_energy_bal(power, h_hot_in - d_high, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
+        "h_hot_out": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out + d_high, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                      - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out - d_high, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
+        "p_hot_in": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in + d_high, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                     - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in - d_high, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
+        "p_hot_out": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out + d_high, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                      - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out - d_high, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
+        "h_cold_in": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in + d_high, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                      - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in - d_high, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
+        "h_cold_out": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out + d_high, p_cold_out, m_cold, fluid_cold)
+                       - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out - d_high, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
+        "p_cold_in": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in + d_high, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                      - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in - d_high, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_high),
+        "p_cold_out": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out + d_high, m_cold, fluid_cold)
+                       - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out - d_high, m_cold, fluid_cold)) / (2 * d_high),
+        "m_hot": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot + d_low, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)
+                  - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot - d_low, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold, fluid_cold)) / (2 * d_low),
+        "m_cold": (eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold + d_low, fluid_cold)
+                   - eps_ideal_ihx_energy_bal(power, h_hot_in, p_hot_in, h_hot_out, p_hot_out, m_hot, fluid_hot, h_cold_in, p_cold_in, h_cold_out, p_cold_out, m_cold - d_low, fluid_cold)) / (2 * d_low)
     }
 
 

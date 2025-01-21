@@ -18,7 +18,7 @@
         "ttd_l_eva": 2
     },
     "technical_parameters": {
-        "eta_s": 0.92
+        "eta_s": 0.95
     },
     "starting_values": {
         "enthalpies": {

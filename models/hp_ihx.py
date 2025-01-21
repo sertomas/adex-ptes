@@ -11,13 +11,13 @@ from tabulate import tabulate as tabulate_func
 from CoolProp.CoolProp import PropsSI as PSI
 
 from functions import (pr_func, pr_deriv, eta_s_compressor_func, eta_s_compressor_deriv, turbo_func, turbo_deriv, he_func,
-                       he_deriv, ihx_func, ihx_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
+                       he_deriv, ihx_energy_bal, ihx_energy_bal_deriv, temperature_func, temperature_deriv, valve_func, valve_deriv,
                        x_saturation_func, x_saturation_deriv, qt_diagram, eps_compressor_func, eps_compressor_deriv,
-                       eps_real_he_func, eps_real_he_deriv, eps_real_ihx_func, eps_real_ihx_deriv, simple_he_func,
+                       eps_real_he_func, eps_real_he_deriv, eps_real_ihx_energy_bal, eps_real_ihx_energy_bal_deriv, simple_he_func,
                        simple_he_deriv, ideal_ihx_entropy_func, ideal_ihx_entropy_deriv, ideal_he_entropy_func,
                        ideal_he_entropy_deriv, ideal_valve_entropy_func, ideal_valve_entropy_deriv, he_with_p_func,
                        he_with_p_deriv, same_temperature_func, same_temperature_deriv, ttd_temperature_func,
-                       ttd_temperature_deriv)
+                       ttd_temperature_deriv, store_cop_in_csv)
 
 
 def check_minimum_temperature_differences_hp(df_streams, min_temps, case):
@@ -219,7 +219,7 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
         if adex and config['ihx'] == 'ideal':  # ideal ihx: ttd_u = 0
             t16_set = same_temperature_func(variables[3], target_p12, wf, variables[0], variables[10], wf)  # t16 = t12
         # elif adex and config['ihx'] == 'real':  # adex real ihx: epsilon from base case
-            # t16_set = eps_real_ihx_func(epsilon['ihx'], variables[3], target_p12, variables[8], variables[11], wf,
+            # t16_set = eps_real_ihx_energy_bal(epsilon['ihx'], variables[3], target_p12, variables[8], variables[11], wf,
                                         # variables[9], variables[15], variables[0], variables[10], wf)
         else:  # real or unavoid ihx: given ttd_u
             t16_set = ttd_temperature_func(-ttd_u_ihx, variables[3], target_p12, wf, variables[0], variables[10], wf)
@@ -248,7 +248,7 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
             t13_calc_ihx = ideal_ihx_entropy_func(variables[3], target_p12, variables[8], variables[11], wf,
                                                   variables[9], variables[15], variables[0], variables[10], wf)
         else:  # real or unavoid ihx: energy balance equation for upper state
-            t13_calc_ihx = ihx_func(variables[3], variables[8], variables[9], variables[0])
+            t13_calc_ihx = ihx_energy_bal(variables[3], variables[8], variables[9], variables[0])
         #   9
         p16_set = pr_func(pr_ihx_cold, variables[15], variables[10])
         #   10
@@ -300,7 +300,7 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
         if adex and config['ihx'] == 'ideal':  # ideal ihx: ttd_u_j = 0
             t16_set_j = same_temperature_deriv(variables[3], target_p12, wf, variables[0], variables[10], wf)  # t16_j = t12
         # elif adex and config['ihx'] == 'real':  # adex real ihx: epsilon from base case
-            # t16_set_j = eps_real_ihx_deriv(epsilon['ihx'], variables[3], target_p12, variables[8], variables[11], wf,
+            # t16_set_j = eps_real_ihx_energy_bal_deriv(epsilon['ihx'], variables[3], target_p12, variables[8], variables[11], wf,
                                            # variables[9], variables[15], variables[0], variables[10], wf)
         else:  # real or unavoid ihx: given ttd_u
             t16_set_j = ttd_temperature_deriv(-ttd_u_ihx, variables[3], target_p12, wf, variables[0], variables[10], wf)
@@ -329,7 +329,7 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
             t13_calc_ihx_j = ideal_ihx_entropy_deriv(variables[3], target_p12, variables[8], variables[11], wf,
                                                      variables[9], variables[15], variables[0], variables[10], wf)
         else:  # real or unavoid ihx: energy balance equation for upper state
-            t13_calc_ihx_j = ihx_deriv(variables[3], variables[8], variables[9], variables[0])
+            t13_calc_ihx_j = ihx_energy_bal_deriv(variables[3], variables[8], variables[9], variables[0])
         #   9
         p16_set_j = pr_deriv(pr_ihx_cold, variables[15], variables[10])
         #   10
@@ -947,8 +947,11 @@ def perform_adex_hp(p12_start, config, label, df_ed, config_paths, adex=False, s
                            print_results=print_results, adex=adex, output_buffer=output_buffer)
 
     # Run simulation with optimal p12 and minimum pinch point in cond
-    [df_opt, _, _, allowed_min_temps] = simulate_hp(p12_opt, config=config, label=f'optimal_{label}', config_paths=config_paths,
+    [df_opt, _, cop, allowed_min_temps] = simulate_hp(p12_opt, config=config, label=f'optimal_{label}', config_paths=config_paths,
                                                     adex=adex, print_results=print_results, qt_diagrams=True)
+
+    # Store the optimized COP
+    store_cop_in_csv(cop, f"optimal_{label}", config_paths)
 
     # Check for minimum temperature differences after optimal pressure simulation
     try:
