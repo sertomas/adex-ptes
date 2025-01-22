@@ -256,6 +256,8 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
         #   11
         if adex and config['val'] == 'ideal':  # ideal val: entropy balance equation (isentropic expansion)
             t14_calc_valve = ideal_valve_entropy_func(variables[8], variables[11], variables[12], variables[13], wf)
+        elif config['val'] == 'unavoid':
+            t14_calc_valve = eta_s_compressor_func(0.95, variables[8], variables[11], variables[12], variables[13], wf)
         else:  # real val: energy balance equation (isenthalpic expansion)
             t14_calc_valve = valve_func(variables[8], variables[12])
         #   12
@@ -337,6 +339,8 @@ def simulate_hp(target_p12, config, label, config_paths, adex=False, print_resul
         #   11
         if adex and config['val'] == 'ideal':  # ideal val: entropy balance equation (isentropic expansion)
             t14_calc_valve_j = ideal_valve_entropy_deriv(variables[8], variables[11], variables[12], variables[13], wf)
+        elif config['val'] == 'unavoid':
+            t14_calc_valve_j = eta_s_compressor_deriv(0.95, variables[8], variables[11], variables[12], variables[13], wf)
         else:  # real val: energy balance equation (isenthalpic expansion)
             t14_calc_valve_j = valve_deriv(variables[8], variables[12])
         #   12
@@ -1232,16 +1236,24 @@ def multiprocess_hp(config_paths, high_pressure_level, print_results=False):
         df_adex_analysis.loc[(k, ''), 'ED UN EX [kW]'] = df_adex_analysis.loc[(k, ''), 'ED UN [kW]'] - df_adex_analysis.loc[(k, ''), 'ED UN EN [kW]']
         df_adex_analysis.loc[(k, ''), 'ED AV EN [kW]'] = df_adex_analysis.loc[(k, ''), 'ED EN [kW]'] - df_adex_analysis.loc[(k, ''), 'ED UN EN [kW]']
         df_adex_analysis.loc[(k, ''), 'ED AV EX [kW]'] = df_adex_analysis.loc[(k, ''), 'ED AV [kW]'] - df_adex_analysis.loc[(k, ''), 'ED AV EN [kW]']
+
         for l in components:
             if k != l:
                 df_adex_analysis.loc[(k, l), 'ED AV EX kl [kW]'] = (df_adex_analysis.loc[(k, ''), 'ED AV EX [kW]']
-                                                                    * df_adex_analysis.loc[(k, l), 'ED EX kl [kW]'] / df_adex_analysis.loc[(k, ''), 'ED EX [kW]'])
+                                                                    * (df_adex_analysis.loc[(k, l), 'ED EX kl [kW]'] /
+                                                                       df_adex_analysis.loc[(k, ''), 'ED EX [kW]']))
+
     # AV SUM
     for k in components:
         sum_ed_ex_av_kl = 0
         for l in components:
             if k != l:
-                sum_ed_ex_av_kl += df_adex_analysis.loc[(l, k), 'ED AV EX kl [kW]']
+                sum_ed_ex_av_kl += df_adex_analysis.loc[(k, l), 'ED AV EX kl [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED AV SUM [kW]'] = (
+                df_adex_analysis.loc[(k, ''), 'ED AV EN [kW]']
+                + sum_ed_ex_av_kl
+        )
+
         df_adex_analysis.loc[(k, ''), 'ED AV SUM [kW]'] = df_adex_analysis.loc[(k, ''), 'ED AV EN [kW]'] + sum_ed_ex_av_kl
 
     df_adex_analysis.round(5).to_csv(os.path.join(config_paths['outputs'], 'hp_adex_analysis.csv'))

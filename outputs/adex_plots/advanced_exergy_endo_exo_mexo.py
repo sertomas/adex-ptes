@@ -94,7 +94,7 @@ def plot_exergy_destruction(ax, df, name_mapping, components, title, colors):
 
     ax.axvline(0, color='black', linewidth=1)
     ax.set_xlabel('Exergy destruction [kW]')
-    ax.text(0.97, 0.95, title, transform=ax.transAxes, fontsize=font_size,
+    ax.text(0.57, 1.1, title, transform=ax.transAxes, fontsize=font_size,
             verticalalignment='top', horizontalalignment='right')
 
 # Create figure and 3x2 grid of subplots

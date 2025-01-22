@@ -62,7 +62,7 @@ def plot_exergy_avoid_endo(ax, df, name_mapping, components, title, colors, labe
                 left_negative += total
     ax.axvline(0, color='black', linewidth=1)
     ax.set_xlabel('Exergy destruction [kW]')
-    ax.text(0.97, 0.95, title, ha='right', va='top', transform=ax.transAxes, fontsize=font_size)
+    ax.text(0.57, 1.1, title, ha='right', va='top', transform=ax.transAxes, fontsize=font_size)
 
 # Create figure and 3x2 grid of subplots
 fig, axes = plt.subplots(nrows=3, ncols=2, figsize=figure_size)

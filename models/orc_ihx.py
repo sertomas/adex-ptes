@@ -1275,20 +1275,20 @@ def multiprocess_orc(config_paths, high_pressure_level, print_results=False):
 
         for l in components:
             if k != l:
-                df_adex_analysis.loc[(k, l), 'ED AV EX kl [kW]'] = (
-                        df_adex_analysis.loc[(k, ''), 'ED AV EX [kW]'] *
-                        df_adex_analysis.loc[(k, l), 'ED EX kl [kW]'] /
-                        df_adex_analysis.loc[(k, ''), 'ED EX [kW]']
-                )
+                df_adex_analysis.loc[(k, l), 'ED AV EX kl [kW]'] = (df_adex_analysis.loc[(k, ''), 'ED AV EX [kW]']
+                                                                    * (df_adex_analysis.loc[(k, l), 'ED EX kl [kW]'] /
+                                                                       df_adex_analysis.loc[(k, ''), 'ED EX [kW]']))
 
     # AV SUM
     for k in components:
         sum_ed_ex_av_kl = 0
         for l in components:
             if k != l:
-                sum_ed_ex_av_kl += df_adex_analysis.loc[(l, k), 'ED AV EX kl [kW]']
-        df_adex_analysis.loc[(k, ''), 'ED AV SUM [kW]'] = df_adex_analysis.loc[(k, ''), 'ED AV EN [kW]'] + \
-                                                          sum_ed_ex_av_kl
+                sum_ed_ex_av_kl += df_adex_analysis.loc[(k, l), 'ED AV EX kl [kW]']
+        df_adex_analysis.loc[(k, ''), 'ED AV SUM [kW]'] = (
+                df_adex_analysis.loc[(k, ''), 'ED AV EN [kW]']
+                + sum_ed_ex_av_kl
+        )
 
     df_adex_analysis.round(5).to_csv(os.path.join(config_paths['outputs'], 'orc_adex_analysis.csv'))
 

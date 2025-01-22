@@ -122,9 +122,9 @@ ihx_unavoid,tot,268.823701
 val_unavoid,comp,87.086748
 val_unavoid,cond,98.410657
 val_unavoid,ihx,31.021768
-val_unavoid,val,23.066203
-val_unavoid,eva,37.686526
-val_unavoid,tot,277.271901
+val_unavoid,val,-1.214011
+val_unavoid,eva,38.115277
+val_unavoid,tot,253.420439
 eva_unavoid,comp,84.862543
 eva_unavoid,cond,97.869291
 eva_unavoid,ihx,28.697833
